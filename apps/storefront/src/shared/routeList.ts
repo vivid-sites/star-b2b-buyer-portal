@@ -51,6 +51,7 @@ const {
   accountSettingPermissions,
   companyHierarchyPermissions,
   quoteDetailPermissions,
+  invoiceHistoryPermissions,
 } = legacyPermissions;
 
 const {
@@ -67,6 +68,7 @@ const {
   quoteDetailPermissionCodes,
   companyHierarchyPermissionCodes,
   quickOrderPermissionCodes,
+  invoiceHistoryPermissionCodes,
 } = newPermissions;
 
 export const routeList: (BuyerPortalRoute | RouteItem)[] = [
@@ -100,6 +102,28 @@ export const routeList: (BuyerPortalRoute | RouteItem)[] = [
     permissionCodes: companyOrdersPermissionCodes,
     isTokenLogin: true,
     idLang: 'global.navMenu.companyOrders',
+  },
+  {
+    path: '/invoice-history',
+    name: 'Invoice History',
+    subsidiariesCompanyKey: 'order',
+    wsKey: 'router-orders',
+    isMenuItem: true,
+    permissions: invoiceHistoryPermissions,
+    permissionCodes: invoiceHistoryPermissionCodes,
+    isTokenLogin: true,
+    idLang: 'global.navMenu.invoiceHistory',
+  },
+  {
+    path: '/invoice-history/:id',
+    name: 'Invoice details',
+    wsKey: 'router-orders',
+    subsidiariesCompanyKey: 'order',
+    isMenuItem: false,
+    permissions: invoiceHistoryPermissions,
+    permissionCodes: invoiceHistoryPermissionCodes,
+    isTokenLogin: true,
+    idLang: 'global.navMenu.invoiceHistoryDetail',
   },
   {
     path: '/invoice',

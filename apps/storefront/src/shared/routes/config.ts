@@ -101,6 +101,12 @@ const legacyPermissions = {
     CustomerRole.CUSTOM_ROLE,
   ],
   quoteDetailPermissions: allLegacyPermission,
+  invoiceHistoryPermissions: [
+    CustomerRole.ADMIN,
+    CustomerRole.SENIOR_BUYER,
+    CustomerRole.SUPER_ADMIN,
+    CustomerRole.CUSTOM_ROLE,
+  ],
 };
 
 const denyInvoiceRoles = [
@@ -123,6 +129,7 @@ const newPermissions = {
   quoteDetailPermissionCodes: b2bPermissionsMap.getQuoteDetailPermission,
   companyHierarchyPermissionCodes: b2bPermissionsMap.companyHierarchyPermission,
   quickOrderPermissionCodes: b2bPermissionsMap.getOrderPermission,
+  invoiceHistoryPermissionCodes: b2bPermissionsMap.getInvoiceHistoryPermission,
 };
 
 export { legacyPermissions, denyInvoiceRoles, allLegacyPermission, newPermissions };

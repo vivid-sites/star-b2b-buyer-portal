@@ -32,6 +32,7 @@ import {
 import { resetDraftQuoteInfo, resetDraftQuoteList } from '@/store/slices/quoteInfo';
 import { CompanyStatus, CustomerRole, CustomerRoleName, LoginTypes, UserTypes } from '@/types';
 import { getAccountHierarchyIsEnabled } from '@/utils/storefrontConfig';
+import { ensureVSCurrentCustomerJWT } from '@/shared/service/vs/request/jwt';
 
 import b2bLogger from './b3Logger';
 import { B3LStorage, B3SStorage } from './b3Storage';
@@ -248,6 +249,10 @@ export const getCompanyUserInfo = async () => {
 };
 
 const loginWithCurrentCustomerJWT = async () => {
+  /* VS Custom Code Start */
+ await ensureVSCurrentCustomerJWT();
+ /* VS Custom Code End */
+
   const prevCurrentCustomerJWT = store.getState().company.tokens.currentCustomerJWT;
   let currentCustomerJWT;
   try {
@@ -283,6 +288,7 @@ export const getCurrentCustomerInfo = async (
   b2bToken?: string,
 ): Promise<CustomerInfo | undefined> => {
   const { B2BToken } = store.getState().company.tokens;
+
 
   let loginType = LoginTypes.GENERAL_LOGIN;
 

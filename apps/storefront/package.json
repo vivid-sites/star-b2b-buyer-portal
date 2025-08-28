@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:dev": "tsc && vite build --mode dev",
     "build:staging": "tsc && vite build --mode staging",
     "build:tier1": "tsc && vite build --mode tier1",
     "lint": "yarn lint:dependencies && yarn lint:eslint",

@@ -19,6 +19,7 @@ interface Tokens {
   B2BToken: string;
   bcGraphqlToken: string;
   currentCustomerJWT: string;
+  vsCurrentCustomerJWT: string;
 }
 
 export interface PermissionsCodesProps {
@@ -58,6 +59,7 @@ const initialState: CompanyState = {
     B2BToken: '',
     bcGraphqlToken: '',
     currentCustomerJWT: '',
+    vsCurrentCustomerJWT: '',
   },
   permissions: [],
   companyHierarchyInfo: {
@@ -164,6 +166,9 @@ const companySlice = createSlice({
         companyHierarchyList,
       };
     },
+    setVSCurrentCustomerJWT: (state, { payload }: PayloadAction<string>) => {
+      state.tokens.vsCurrentCustomerJWT = payload;
+    },
   },
 });
 
@@ -183,6 +188,7 @@ export const {
   setCompanyHierarchyListModules,
   setCompanyHierarchyInfoModules,
   setPagesSubsidiariesPermission,
+  setVSCurrentCustomerJWT,
 } = companySlice.actions;
 
 export default persistReducer({ key: 'company', storage: storageSession }, companySlice.reducer);

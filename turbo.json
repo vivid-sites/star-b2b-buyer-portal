@@ -12,6 +12,10 @@
       "cache": false,
       "persistent": true
     },
+    "build:dev": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
     "build:staging": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]

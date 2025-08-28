@@ -37,6 +37,8 @@ export const b2bPermissionsMap = {
   getOrderPermission: 'get_orders',
   getOrderDetailPermission: 'get_order_detail',
 
+  getInvoiceHistoryPermission: 'get_orders',
+
   getInvoicesPermission: 'get_invoices',
   getInvoiceDetailPermission: 'get_invoice_detail',
   getInvoicePDFPermission: 'get_invoice_pdf',
