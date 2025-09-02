@@ -9,8 +9,14 @@ export default /* GraphQL */ `
     name: String!
   }
 
+  type CompanyRelationship {
+    role: Role!
+    company: Company!
+  }
+
   extend type Customer {
-    role: Role
+    company: String! # we can make this companyRelationship.company.name for b2b customers for backward compatibility
+    companyRelationship: CompanyRelationship
   }
 
   type CustomerEdge {
@@ -48,6 +54,15 @@ export default /* GraphQL */ `
       SomeChangeCustomerRoleError
     | AnotherChangeCustomerRoleError
 
+  input ChangeCustomerRoleDataInput {
+    roleId: ID!
+  }
+
+  input ChangeCustomerRoleInput {
+    customerId: ID!
+    data: ChangeCustomerRoleDataInput!
+  }
+
   type ChangeCustomerRoleResult {
     errors: [ChangeCustomerRoleError!]!
     customer: Customer
@@ -67,6 +82,11 @@ export default /* GraphQL */ `
       SomeDeregistrationError
     | AnotherDeregistrationError
 
+  input DeregisterCustomerInput {
+    companyId: ID!
+    customerId: Int!
+  }
+
   type DeregistrationResult {
     errors: [DeregisterCustomerError!]!
   }
@@ -81,7 +101,7 @@ export default /* GraphQL */ `
     message: String!
   }
 
-  input RegisterCompanyCustomerInput {
+  input RegisterCompanyCustomerDataInput {
     firstName: String!
     lastName: String!
     email: String!
@@ -90,19 +110,25 @@ export default /* GraphQL */ `
     formFields: CustomerFormFieldsInput
   }
 
+  input RegisterCompanyCustomerInput {
+    data: RegisterCompanyCustomerDataInput!
+  }
+
   type CompanyMutations {
-    changeCustomerRole(customerId: Int!, roleId: ID!): ChangeCustomerRoleResult!
-    deregisterCustomer(customerId: Int!): DeregistrationResult!
+    changeCustomerRole(
+      input: ChangeCustomerRoleInput!
+    ): ChangeCustomerRoleResult!
+    deregisterCustomer(input: DeregisterCustomerInput!): DeregistrationResult!
     registerCustomer(
       input: RegisterCompanyCustomerInput!
     ): RegisterCustomerResult!
   }
 
   extend type Mutation {
-    company(id: ID!): CompanyMutations!
+    company: CompanyMutations!
   }
 
-  extend type Query {
+  extend type Site {
     company(id: ID!): Company!
   }
 `

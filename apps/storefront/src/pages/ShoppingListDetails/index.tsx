@@ -1,10 +1,10 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useB3Lang } from '@b3/lang';
 import { Box, Grid, useTheme } from '@mui/material';
 
 import B3Spin from '@/components/spin/B3Spin';
 import { useMobile } from '@/hooks';
+import { useB3Lang } from '@/lib/lang';
 import { GlobalContext } from '@/shared/global';
 import {
   deleteB2BShoppingListItem,
@@ -271,7 +271,7 @@ function ShoppingListDetails({ setOpenPage }: PageProps) {
 
   const getShoppingListDetails = async (params: SearchProps) => {
     const shoppingListDetailInfo = await getShoppingList(params);
-
+    setIsRequestLoading(true);
     const {
       products: { edges, totalCount },
     } = shoppingListDetailInfo;
@@ -282,7 +282,7 @@ function ShoppingListDetails({ setOpenPage }: PageProps) {
 
     if (isB2BUser) setCustomerInfo(shoppingListDetailInfo.customerInfo);
     setShoppingListInfo(shoppingListDetailInfo);
-
+    setIsRequestLoading(false);
     if (!listProducts) {
       return {
         edges: [],

@@ -1,5 +1,4 @@
 import { ReactElement, ReactNode, useRef } from 'react';
-import { useB3Lang } from '@b3/lang';
 import {
   Box,
   Breakpoint,
@@ -14,6 +13,7 @@ import {
 
 import useMobile from '@/hooks/useMobile';
 import useScrollBar from '@/hooks/useScrollBar';
+import { useB3Lang } from '@/lib/lang';
 import { useAppSelector } from '@/store';
 
 import CustomButton from './button/CustomButton';
@@ -107,7 +107,7 @@ export default function B3Dialog<T>({
 
       <Dialog
         fullWidth={fullWidth}
-        open={isOpen}
+        open={isOpen && Boolean(container.current)}
         container={container.current}
         onClose={(_: object, reason: string) => handleCloseClick(reason)}
         fullScreen={isMobile}

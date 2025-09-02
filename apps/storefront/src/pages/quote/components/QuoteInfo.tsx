@@ -1,8 +1,9 @@
-import { useB3Lang } from '@b3/lang';
+import { useId } from 'react';
 import { Box, Typography } from '@mui/material';
 
 import CustomButton from '@/components/button/CustomButton';
 import { useMobile } from '@/hooks';
+import { useB3Lang } from '@/lib/lang';
 import {
   BillingAddress,
   ContactInfo,
@@ -75,14 +76,19 @@ function QuoteInfoItem({ flag, title, info, status }: QuoteInfoItemProps) {
     flag !== 'info' ? addressVerifyKeys.some((item: string) => info && !!info[item]) : false;
 
   const infoPaddingLeft = flag === 'info' || isMobile ? 0 : '10px';
+  const titleId = useId();
+
   return (
     <Box
+      aria-labelledby={titleId}
+      role="article"
       sx={{
         width: isMobile || flag === 'info' ? '100%' : '33.3%',
         paddingLeft: infoPaddingLeft,
       }}
     >
       <Typography
+        id={titleId}
         sx={{
           fontWeight: 400,
           fontSize: '24px',

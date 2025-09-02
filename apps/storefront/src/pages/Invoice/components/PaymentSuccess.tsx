@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useB3Lang } from '@b3/lang';
 import { Box, Button, Typography } from '@mui/material';
 
 import { B3NoData } from '@/components';
 import B3Dialog from '@/components/B3Dialog';
 import B3Spin from '@/components/spin/B3Spin';
 import { useMobile } from '@/hooks';
+import { useB3Lang } from '@/lib/lang';
 import { getInvoicePaymentInfo } from '@/shared/service/b2b';
 import { InvoiceSuccessData, ReceiptLineSet } from '@/types/invoice';
 import { displayFormat, handleGetCorrespondingCurrency } from '@/utils';
@@ -129,12 +129,13 @@ function PaymentSuccessList({ list }: { list: InvoiceSuccessData }) {
       isRow: true,
       idLang: 'payment.reference',
     },
-  ];
+  ] as const satisfies PaymentSuccessKeysProps[];
 
   return (
     <Box>
-      {paymentSuccessKeys.map((item: PaymentSuccessKeysProps) => (
+      {paymentSuccessKeys.map((item) => (
         <Row
+          key={item.key}
           isRow={!!item.isRow}
           type={item.type}
           value={(list as CustomFieldItems)[item.key]}
@@ -158,7 +159,6 @@ function PaymentSuccessList({ list }: { list: InvoiceSuccessData }) {
           {comment}
         </Typography>
       </Box>
-
       <Box
         sx={{
           display: 'flex',
@@ -168,7 +168,6 @@ function PaymentSuccessList({ list }: { list: InvoiceSuccessData }) {
         <Title title={b3Lang('payment.invoicesPaid')} withColon={false} />
         <Typography variant="body1">{b3Lang('payment.paymentTowardsInvoices')} </Typography>
       </Box>
-
       <Box>
         <Box
           sx={{
@@ -200,6 +199,7 @@ function PaymentSuccessList({ list }: { list: InvoiceSuccessData }) {
         </Box>
         {edges.map((item: ReceiptLineSet) => {
           const {
+            id,
             invoiceNumber,
             amount: { value, code },
           } = item.node;
@@ -208,6 +208,7 @@ function PaymentSuccessList({ list }: { list: InvoiceSuccessData }) {
           const accountValue = handleGetCorrespondingCurrency(code, val);
           return (
             <Box
+              key={id}
               sx={{
                 borderBottom: '1px solid #D9DCE9',
                 padding: '20px 15px',

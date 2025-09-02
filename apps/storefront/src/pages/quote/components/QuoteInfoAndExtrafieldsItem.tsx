@@ -1,6 +1,7 @@
-import { useB3Lang } from '@b3/lang';
+import { useId } from 'react';
 import { Box, Typography } from '@mui/material';
 
+import { useB3Lang } from '@/lib/lang';
 import { QuoteInfoAndExtrafieldsItemProps } from '@/types/quotes';
 
 import { Base64 } from '../../../utils/b3Product/shared/config';
@@ -19,13 +20,18 @@ function QuoteInfoAndExtrafieldsItem({ status, quoteInfo }: QuoteInfoAndExtrafie
     recipients,
   } = quoteInfo;
 
+  const titleId = useId();
+
   return (
     <Box
+      role="article"
+      aria-labelledby={titleId}
       sx={{
         width: '100%',
       }}
     >
       <Typography
+        id={titleId}
         sx={{
           fontWeight: 400,
           fontSize: '24px',

@@ -42,6 +42,8 @@ export default /* GraphQL */ `
   }
 
   extend type Customer {
+    # As a junior buyer, I only see my own shopping lists (draft + approved)
+    # Any other user, I see all shopping lists (excluding drafts), and can approve/reject them.
     shoppingLists(
       filters: CustomerShoppingListsFiltersInput
       before: String
@@ -97,6 +99,8 @@ export default /* GraphQL */ `
   }
 
   extend type CompanyMutations {
+    # as a junior buyer, my createShoppingLists mutation creates a "draft" shopping list
+    # as any other user, my createShoppingLists mutation creates an "approved" shopping list
     createShoppingList(input: CreateShoppingListInput): CreateShoppingListResult
   }
 
@@ -181,21 +185,24 @@ export default /* GraphQL */ `
     errors: [UpdateShoppingListDetailsError!]!
   }
 
-  input UpdateShoppingListDetailsInput {
+  input UpdateShoppingListDetailsDataInput {
     name: String
     description: String
   }
 
+  input UpdateShoppingListDetailsInput {
+    id: ID!
+    data: UpdateShoppingListDetailsDataInput!
+  }
+
   extend type CustomerMutations {
     updateShoppingListDetails(
-      id: ID!
       input: UpdateShoppingListDetailsInput
     ): UpdateShoppingListDetailsResult
   }
 
   extend type CompanyMutations {
     updateShoppingListDetails(
-      id: ID!
       input: UpdateShoppingListDetailsInput
     ): UpdateShoppingListDetailsResult
   }

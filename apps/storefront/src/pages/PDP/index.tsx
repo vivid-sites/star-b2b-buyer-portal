@@ -1,8 +1,8 @@
 import { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import config from '@b3/global-b3';
-import { useB3Lang } from '@b3/lang';
 
+import config from '@/lib/config';
+import { useB3Lang } from '@/lib/lang';
 import { GlobalContext } from '@/shared/global';
 import {
   addProductToBcShoppingList,
@@ -95,10 +95,7 @@ function useData() {
 
   const getShoppingListItem = () => {
     if (platform !== 'bigcommerce') {
-      const {
-        itemFromCurrentPage: [product],
-      } = window.b2b.utils.shoppingList;
-      return product;
+      return window.b2b.utils.shoppingList.itemFromCurrentPage[0];
     }
 
     if (!shoppingListClickNode) return undefined;

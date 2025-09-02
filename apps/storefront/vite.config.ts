@@ -1,25 +1,16 @@
-/* eslint-disable import/no-extraneous-dependencies */
 // cspell:ignore onwarn, pdfobject
-/// <reference types="vitest" />
-// Types are not exported for @vitejs/plugin-legacy, so we need to use `@ts-expect-error` to ignore the type errors for now.
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-expect-error
 import legacy from '@vitejs/plugin-legacy';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { visualizer } from 'rollup-plugin-visualizer';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv, UserConfig } from 'vite';
+import { ViteUserConfig } from 'vitest/config';
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode }): UserConfig & Pick<ViteUserConfig, 'test'> => {
   const env = loadEnv(mode, process.cwd());
 
   return {
-    plugins: [
-      legacy({
-        targets: ['defaults'],
-      }),
-      react(),
-    ],
+    plugins: [legacy({ targets: ['defaults'] }), react()],
     experimental: {
       renderBuiltUrl(filename: string) {
         const isCustomBuyerPortal = env.VITE_ASSETS_ABSOLUTE_PATH !== undefined;
@@ -91,7 +82,6 @@ export default defineConfig(({ mode }) => {
             if (name.includes('headless') || env.VITE_DISABLE_BUILD_HASH) {
               return '[name].js';
             }
-
             return '[name].[hash].js';
           },
           manualChunks: {
@@ -101,10 +91,8 @@ export default defineConfig(({ mode }) => {
             muiIcon: ['@mui/icons-material'],
             redux: ['react-redux'],
             dateFns: ['date-fns'],
-            lang: ['@b3/lang'],
             pdfobject: ['pdfobject'],
             resizable: ['react-resizable'],
-            pdf: ['react-pdf'],
             toolkit: ['@reduxjs/toolkit'],
             form: ['react-hook-form'],
             router: ['react-router-dom'],

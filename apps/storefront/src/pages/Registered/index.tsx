@@ -1,6 +1,5 @@
 import { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useB3Lang } from '@b3/lang';
 import { Box, ImageListItem } from '@mui/material';
 
 import b2bLogo from '@/assets/b2bLogo.png';
@@ -8,6 +7,7 @@ import { B3Card } from '@/components';
 import B3Spin from '@/components/spin/B3Spin';
 import { LOGIN_LANDING_LOCATIONS } from '@/constants';
 import { useMobile, useScrollBar } from '@/hooks';
+import { useB3Lang } from '@/lib/lang';
 import { CustomStyleContext } from '@/shared/customStyleButton';
 import { GlobalContext } from '@/shared/global';
 import { getB2BAccountFormFields, getB2BCountries } from '@/shared/service/b2b';
@@ -244,8 +244,8 @@ function Registered(props: PageProps) {
             : LOGIN_LANDING_LOCATIONS.BUYER_PORTAL;
 
           window.b2b.callbacks.dispatchEvent('on-registered', {
-            email: customer.emailAddress,
-            password: customer.password,
+            email,
+            password,
             landingLoginLocation,
           });
           window.location.hash = '';

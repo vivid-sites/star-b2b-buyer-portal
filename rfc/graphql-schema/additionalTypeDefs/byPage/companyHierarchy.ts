@@ -8,8 +8,11 @@ export default /* GraphQL */ `
     subsidiaries: CompanyConnection!
   }
 
-  extend type Query {
+  extend type Customer {
     activeCompany: Company
+  }
+
+  extend type Site {
     company(id: ID!): Company!
   }
 
@@ -33,6 +36,10 @@ export default /* GraphQL */ `
     message: String!
   }
 
+  input SetActiveCompanyInput {
+    companyId: ID!
+  }
+
   type SetActiveCompanyResult {
     activeCompany: Company
     errors: [SetActiveCompanyError!]!
@@ -43,7 +50,7 @@ export default /* GraphQL */ `
   }
 
   type ActiveCompanyMutations {
-    set(companyId: ID!): SetActiveCompanyResult
+    set(input: SetActiveCompanyInput!): SetActiveCompanyResult
   }
 
   extend type Mutation {

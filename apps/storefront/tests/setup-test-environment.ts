@@ -1,4 +1,6 @@
 import { cleanup } from '@testing-library/react';
+import Cookies from 'js-cookie';
+import { unset } from 'lodash-es';
 import failOnConsole from 'vitest-fail-on-console';
 
 import { Environment } from '@/types';
@@ -31,8 +33,16 @@ beforeEach(() => {
   vi.spyOn(document.body, 'clientWidth', 'get').mockReturnValue(1000);
 });
 
+const cleanAllCookies = () => {
+  Object.entries(Cookies.get()).forEach(([key]) => {
+    Cookies.remove(key);
+  });
+};
+
 afterEach(() => {
   cleanup();
+  cleanAllCookies();
+  unset(window, 'b2b');
 });
 
 failOnConsole({
@@ -48,7 +58,8 @@ failOnConsole({
 
     return false;
   },
-  shouldFailOnLog: true,
-  shouldFailOnWarn: true,
-  shouldFailOnInfo: true,
+  shouldFailOnLog: Boolean(process.env.CI),
+  shouldFailOnWarn: Boolean(process.env.CI),
+  shouldFailOnInfo: Boolean(process.env.CI),
+  shouldFailOnError: Boolean(process.env.CI),
 });

@@ -128,7 +128,8 @@ const updateShoppingList = (fn: string) => `
   }
 `;
 
-const createShoppingList = (fn: string) => `mutation($shoppingListData: ShoppingListsInputType!){
+const createShoppingList = (fn: string) => `
+mutation CreateShoppingList($shoppingListData: ShoppingListsInputType!){
   ${fn}(
     shoppingListData: $shoppingListData
   ) {
@@ -302,7 +303,7 @@ const getShoppingListDetails = (data: CustomFieldItems) => `
   }
 `;
 
-const addItemsToShoppingList = (data: CustomFieldItems) => `mutation {
+const addItemsToShoppingList = (data: CustomFieldItems) => `mutation AddItemsToShoppingList {
   shoppingListsItemsCreate(
     shoppingListId: ${data.shoppingListId},
     items: ${convertArrayToGraphql(data.items || [])}
@@ -393,7 +394,7 @@ const updateCustomerShoppingList = (
 
 const createCustomerShoppingList = (
   fn: string,
-) => `mutation($shoppingListData: CustomerShoppingListsInputType!){
+) => `mutation CreateCustomerShoppingList($shoppingListData: CustomerShoppingListsInputType!){
   ${fn}(
     shoppingListData: $shoppingListData
   ) {
@@ -455,7 +456,9 @@ const getCustomerShoppingListDetails = (data: CustomFieldItems) => `{
   }
 }`;
 
-const addItemsToBcShoppingList = (data: CustomFieldItems) => `mutation {
+const addItemsToBcShoppingList = (
+  data: CustomFieldItems,
+) => `mutation AddItemsToCustomerShoppingList {
   customerShoppingListsItemsCreate (
     shoppingListId: ${data.shoppingListId},
     items: ${convertArrayToGraphql(data.items || [])}
