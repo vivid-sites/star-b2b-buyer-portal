@@ -8,3 +8,4 @@ export * from './company';
 export * from './currency';
 export * from './common';
 export * from './invoice';
+export * from './invoiceHistory';

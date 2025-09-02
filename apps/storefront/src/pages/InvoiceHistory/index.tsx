@@ -9,8 +9,8 @@ import B3Filter from '@/components/filter/B3Filter';
 import B3Spin from '@/components/spin/B3Spin';
 import { useMobile } from '@/hooks';
 import { useAppSelector } from '@/store';
-import { CustomerRole } from '@/types';
-import { currencyFormat, displayFormat } from '@/utils';
+import { CustomerRole, MoneyFormat } from '@/types';
+import { ordersCurrencyFormat, displayFormat } from '@/utils';
 import { DataSourceRequest } from '@/shared/service/vs/request/base';
 
 import { B3Table, TableColumnItem } from './table/B3Table';
@@ -25,6 +25,7 @@ import { InvoiceHistoryCard } from './components/InvoiceHistoryCard';
 import {
   getInvoiceHistory,
 } from './invoices';
+import { InvoiceHistoryStatus } from '../InvoiceHistoryDetail/components';
 
 interface ListItem {
   invoiceNumber: string;
@@ -292,6 +293,15 @@ function InvoiceHistory() {
     };
   };
 
+  const defaultMoneyFormat: MoneyFormat = {
+    currency_location: 'left',
+    currency_token: '$',
+    decimal_token: '.',
+    decimal_places: 2,
+    thousands_token: ',',
+    currency_exchange_rate: '1.0000000000',
+  };
+
   const navigate = useNavigate();
 
   const goToDetail = (item: ListItem, index: number) => {
@@ -334,9 +344,16 @@ function InvoiceHistory() {
     {
       key: 'subtotalAmount',
       title: b3Lang('invoiceHistory.subtotalAmount'),
-      render: ({ subtotalAmount }) => currencyFormat(subtotalAmount),
+      render: ({ subtotalAmount }) => ordersCurrencyFormat(defaultMoneyFormat, subtotalAmount),
       align: 'right',
       width: '8%',
+      isSortable: true,
+    },
+    {
+      key: 'orderStatus',
+      title: b3Lang('invoiceHistory.invoiceStatus'),
+      render: ({ orderStatus }) => <InvoiceHistoryStatus status={orderStatus} />,
+      width: '10%',
       isSortable: true,
     },
     {
