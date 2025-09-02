@@ -1,5 +1,5 @@
 import { ChangeEvent, MouseEvent, ReactElement, ReactNode, useContext } from 'react';
-import { useB3Lang } from '@b3/lang';
+import { useB3Lang } from '@/lib/lang';
 import {
   Card,
   Grid,

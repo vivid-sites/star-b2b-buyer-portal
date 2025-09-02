@@ -4,7 +4,7 @@ import { InvoiceSummary, MoneyFormat } from "@/types";
 import { displayFormat } from '@/utils/b3DateFormat';
 import { currencyFormat, ordersCurrencyFormat } from '@/utils';
 import { Fragment } from "react/jsx-runtime";
-import { useB3Lang } from "@b3/lang";
+import { useB3Lang } from "@/lib/lang";
 
 interface ItemContainerProps {
 	nameKey: string;

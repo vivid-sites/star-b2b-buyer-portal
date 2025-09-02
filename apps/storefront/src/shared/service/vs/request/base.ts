@@ -21,13 +21,13 @@ const DEFAULT_ENVIRONMENT =
 
 export function getVSAPIBaseURL(environment?: Environment) {
   return ENVIRONMENT_VS_API_URL[
-    environment ?? window.B3?.setting?.environment ?? DEFAULT_ENVIRONMENT
+    environment ?? window.B3?.setting?.vsEnvironment ?? DEFAULT_ENVIRONMENT
   ];
 }
 
 export function getVSAppClientId(environment?: Environment) {
   return ENVIRONMENT_VS_APP_CLIENT_ID[
-    environment ?? window.B3?.setting?.environment ?? DEFAULT_ENVIRONMENT
+    environment ?? window.B3?.setting?.vsEnvironment ?? DEFAULT_ENVIRONMENT
   ];
 }
 

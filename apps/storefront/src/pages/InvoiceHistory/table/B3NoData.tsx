@@ -1,4 +1,4 @@
-import { useB3Lang } from '@b3/lang';
+import { useB3Lang } from '@/lib/lang';
 import styled from '@emotion/styled';
 import { DataUsageRounded } from '@mui/icons-material';
 

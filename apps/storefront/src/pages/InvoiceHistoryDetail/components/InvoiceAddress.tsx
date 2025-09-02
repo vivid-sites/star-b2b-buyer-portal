@@ -2,7 +2,7 @@ import { Fragment } from 'react';
 import { Box, Card, CardContent, Divider, Typography } from '@mui/material';
 
 import { InvoiceHistoryAddress } from '../../../types';
-import { useB3Lang } from '@b3/lang';
+import { useB3Lang } from '@/lib/lang';
 
 type InvoiceAddressProps = {
   type: 'billing' | 'shipping';

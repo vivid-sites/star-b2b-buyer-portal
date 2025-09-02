@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useB3Lang } from '@b3/lang';
+import { useB3Lang } from '@/lib/lang';
 import { ArrowBackIosNew } from '@mui/icons-material';
 import { Box, Card, CardContent, Grid, Stack, Typography } from '@mui/material';
 

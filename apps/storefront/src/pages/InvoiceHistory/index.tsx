@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useB3Lang } from '@b3/lang';
+import { useB3Lang } from '@/lib/lang';
 import { Box } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 
