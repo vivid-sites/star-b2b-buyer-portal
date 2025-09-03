@@ -1,7 +1,7 @@
 export interface FilterSearchProps {
-  [key: string]: string | number | number[] | null;
-  beginDateAt: string | null;
-  endDateAt: string | null;
+  [key: string]: string | Date | number | number[] | null;
+  beginDateAt: Date | null;
+  endDateAt: Date | null;
   orderBy: string;
   companyId: string;
   companyIds: number[];
@@ -29,6 +29,48 @@ export function assertSortKey(key: string): asserts key is keyof typeof sortKeys
     throw new Error(`Invalid sort key: ${key}`);
   }
 }
+
+
+export const getFilterMoreData = () => {
+
+  const filterMoreList = [
+    {
+      name: 'invoiceNumber',
+      label: 'Invoice #',
+      required: false,
+      default: '',
+      fieldType: 'text',
+      xs: 12,
+      variant: 'filled',
+      size: 'small',
+      idLang: 'invoiceHistory.invoiceNumber',
+    },
+     {
+      name: 'orderNumber',
+      label: 'Order #',
+      required: false,
+      default: '',
+      fieldType: 'text',
+      xs: 12,
+      variant: 'filled',
+      size: 'small',
+      idLang: 'invoiceHistory.orderNumber',
+    },
+   {
+      name: 'poNumber',
+      label: 'PO / Reference #',
+      required: false,
+      default: '',
+      fieldType: 'text',
+      xs: 12,
+      variant: 'filled',
+      size: 'small',
+      idLang: 'invoiceHistory.poReference',
+    }
+  ];
+
+  return filterMoreList;
+};
 
 export const getInitFilter = (selectedCompanyId: number): Partial<FilterSearchProps> => {
   return {

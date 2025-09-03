@@ -17,6 +17,7 @@ import { B3Table, TableColumnItem } from './table/B3Table';
 import {
   assertSortKey,
   FilterSearchProps,
+  getFilterMoreData,
   getInitFilter,
   sortKeys,
 } from './config';
@@ -37,8 +38,8 @@ interface ListItem {
 }
 
 interface SearchChangeProps {
-  startValue?: string;
-  endValue?: string;
+  startValue?: Date;
+  endValue?: Date;
   poNumber?: string;
   orderNumber?: string;
   invoiceNumber?: string;
@@ -124,6 +125,8 @@ function InvoiceHistory() {
     setFilterData(search);
 
     const initFilter = async () => {
+
+      const filterInfo = getFilterMoreData();
 
       const filterInfoWithTranslatedLabel = filterInfo.map((element) => {
         const translatedElement = element;

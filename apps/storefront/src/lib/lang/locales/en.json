@@ -68,7 +68,7 @@
   "global.navMenu.dashboard": "Dashboard",
   "global.navMenu.orders": "My orders",
   "global.navMenu.companyOrders": "Company orders",
-  "global.navMenu.invoiceHistory": "Invoice history",
+  "global.navMenu.invoiceHistory": "In Store Order History",
   "global.navMenu.invoiceHistoryDetail": "Invoice details",
   "global.navMenu.invoice": "Invoices",
   "global.navMenu.quotes": "Quotes",
@@ -174,7 +174,7 @@
   "invoiceHistory.invoiceStatus": "Status",
   "invoiceHistory.invoiceDate": "Invoice date",
 
-  "invoiceHistoryDetail.backToInvoiceHistory": "Back to invoice history",
+  "invoiceHistoryDetail.backToInvoiceHistory": "Back to In Store Order History",
   "invoiceHistoryDetail.invoiceNumber": "Invoice #{invoiceNumber}",
   "invoiceHistoryDetail.billingAddress": "Bill To:",
   "invoiceHistoryDetail.shippingAddress": "Ship To:",
