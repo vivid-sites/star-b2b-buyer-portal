@@ -193,6 +193,7 @@
   "invoiceHistoryDetail.unitName": "Unit name",
   "invoiceHistoryDetail.quantity": "Quantity",
   "invoiceHistoryDetail.extendedPrice": "Extended price",
+  "invoiceHistoryDetail.printInvoice": "print invoice",
 
   "invoiceHistoryDetail.summary.subTotal": "Sub total",
   "invoiceHistoryDetail.summary.shipping": "Shipping",

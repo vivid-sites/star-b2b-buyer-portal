@@ -139,9 +139,9 @@ export default function B3ProductList<T>(props: ProductProps<T>) {
         </Flex>
       )}
 
-      {products.map((product) => {
+      {products.map((product, index) => {
         return (
-          <Flex isHeader isMobile={isMobile}>
+          <Flex isHeader isMobile={isMobile} key={index}>
             <FlexItem padding={isMobile ? '0' : '0 6% 0 0'}>
               <Box
                 sx={{

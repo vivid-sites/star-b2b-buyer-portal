@@ -57,6 +57,7 @@ const initState = {
   invoiceDate: '',
   invoiceValue: 0,
   invoiceSummary: {
+    invoiceNumber: '',
     invoiceDate: '',
     subtotalAmount: '',
     invoiceValue: '',

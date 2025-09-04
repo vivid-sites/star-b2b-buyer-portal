@@ -14,6 +14,7 @@ const formatPrice = (price: string | number) => {
 
 const getInvoiceSummary = (data: InvoiceHistorySummary) => {
   const {
+    invoiceNumber,
     invoiceDate,
     orderDate,
     orderNumber,
@@ -27,6 +28,7 @@ const getInvoiceSummary = (data: InvoiceHistorySummary) => {
   } = data;
 
   const invoiceSummary: InvoiceSummary = {
+    invoiceNumber: invoiceNumber,
     invoiceDate: invoiceDate,
     poNumber: poNumber,
     orderDate: orderDate,

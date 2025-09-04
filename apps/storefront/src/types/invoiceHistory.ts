@@ -60,6 +60,7 @@ export interface InvoiceHistoryProductItemModel {
 }
 
 export interface InvoiceSummary {
+  invoiceNumber: string;
   invoiceDate: string;
   poNumber?: string | null;
   orderDate?: string | null;

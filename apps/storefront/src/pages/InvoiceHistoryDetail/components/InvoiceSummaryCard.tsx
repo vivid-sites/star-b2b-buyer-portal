@@ -5,6 +5,11 @@ import { displayFormat } from '@/utils/b3DateFormat';
 import { currencyFormat, ordersCurrencyFormat } from '@/utils';
 import { Fragment } from "react/jsx-runtime";
 import { useB3Lang } from "@/lib/lang";
+import CustomButton from "@/components/button/CustomButton";
+import { throttle } from "lodash";
+import { getVSAPIBaseURL } from "@/shared/service/vs/request/base";
+import { ensureVSCurrentCustomerJWT } from "@/shared/service/vs/request/jwt";
+import { store } from "@/store";
 
 interface ItemContainerProps {
 	nameKey: string;
@@ -22,6 +27,30 @@ const ItemContainer = styled('div')((props: ItemContainerProps) => ({
 	},
 }));
   
+const StyledCardActions = styled('div')(() => ({
+	flexWrap: 'wrap',
+	margin: '1rem 0 0 0',
+  
+	'& button': {
+	  marginLeft: '0',
+	  marginRight: '8px',
+	  margin: '8px 8px 0 0',
+	},
+}));
+
+const bindDom = (html: string, domId: string) => {
+	let iframeDom = document.getElementById(domId) as HTMLIFrameElement | null;
+	if (!iframeDom) {
+	  iframeDom = document.createElement('iframe');
+	  iframeDom.src = 'about:blank';
+	  iframeDom.id = domId;
+	  iframeDom.style.display = 'none';
+	  document.body.appendChild(iframeDom);
+	}
+	iframeDom.srcdoc = html;
+	iframeDom.style.display = 'block';
+};
+
 interface InvoiceSummaryProps {
 	invoiceSummary: InvoiceSummary;
 	money?: MoneyFormat;
@@ -31,12 +60,37 @@ export default function InvoiceSummaryCard({ invoiceSummary, money }: InvoiceSum
 
 	const b3Lang = useB3Lang();
 
+
 	const formatDate = (date: string) => {
 		const timestamp = new Date(date).getTime()/1000;
 		const epoch = new Date(1970,0,1,0,0,0,0).getTime()/1000;
 		return `${displayFormat(Number(timestamp - epoch))}`;
 	  }
 	
+	async function handlePrintInvoice() {
+		const apiBaseUrl = getVSAPIBaseURL();
+
+		await ensureVSCurrentCustomerJWT();
+		const { vsCurrentCustomerJWT } = store.getState().company.tokens;
+	  
+		fetch(`${apiBaseUrl}/storefront/orderhistory/${invoiceSummary?.invoiceNumber}/print`,
+			{
+				method: 'GET',
+				headers: {
+					'Authorization': `Bearer ${vsCurrentCustomerJWT}`,
+				},
+			}
+		)
+			.then(response => response.text())
+			.then(html => {
+				html = html.replace('</head>', `<base href="${apiBaseUrl}" /> </head>`);
+				bindDom(html, 'b2b_print_invoice');
+			})
+			.catch(error => {
+				console.error(error);
+			});
+	}
+
 	return (
 		<Card
 		sx={{
@@ -114,6 +168,21 @@ export default function InvoiceSummaryCard({ invoiceSummary, money }: InvoiceSum
 			  </ItemContainer>
 			</Fragment>}
 		  </Box>
+		  {invoiceSummary?.invoiceNumber && <StyledCardActions>
+            <Fragment key="printInvoice">
+                <CustomButton
+                  value={b3Lang("invoiceHistoryDetail.printInvoice")}
+                  key="printInvoice"
+                  name="printInvoice"
+                  variant="outlined"
+                  onClick={throttle(() => {
+                    handlePrintInvoice();
+                  }, 2000)}
+                >
+                  {b3Lang("invoiceHistoryDetail.printInvoice")}
+                </CustomButton>
+            </Fragment>
+		  </StyledCardActions>}
 		</CardContent>
 	  </Card>
 	)
