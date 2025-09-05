@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useB3Lang } from '@/lib/lang';
-import { Box } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 
 import { B2BAutoCompleteCheckbox } from '@/components';
@@ -489,6 +489,11 @@ function InvoiceHistory() {
           isInfiniteScroll={isMobile}
           renderItem={(row, index) => (
             <InvoiceHistoryCard key={row.invoiceNumber} goToDetail={() => goToDetail(row, index)} item={row} />
+          )}
+          renderFooter={() => (
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Typography><strong>{b3Lang('invoiceHistory.total')}:</strong> {ordersCurrencyFormat(defaultMoneyFormat, data?.edges?.reduce((acc, curr) => acc + Number(curr.subtotalAmount), 0) || '')}</Typography>
+            </Box>
           )}
           onClickRow={goToDetail}
           sortDirection={orderBy.dir}

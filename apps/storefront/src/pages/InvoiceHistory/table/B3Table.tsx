@@ -7,6 +7,7 @@ import {
   TableBody,
   TableCell,
   TableContainer,
+  TableFooter,
   TableHead,
   TablePagination,
   TableRow,
@@ -87,6 +88,7 @@ interface TableProps<Row extends InvoiceNumberRow> {
   onPaginationChange?: (pagination: Pagination) => void;
   pagination?: Pagination;
   renderItem: (row: Row, index: number) => ReactElement;
+  renderFooter: () => ReactElement;
   isInfiniteScroll?: boolean;
   onClickRow: (row: Row, index: number) => void;
   sortDirection?: 'asc' | 'desc';
@@ -104,6 +106,7 @@ export function B3Table<Row extends InvoiceNumberRow>({
   },
   onPaginationChange = () => {},
   renderItem,
+  renderFooter,
   isInfiniteScroll = false,
   onClickRow,
   sortDirection = 'asc',
@@ -235,6 +238,14 @@ export function B3Table<Row extends InvoiceNumberRow>({
                   );
                 })}
               </TableBody>
+
+              {renderFooter && <TableFooter>
+                <TableRow>
+                  <TableCell colSpan={columnItems.length}>
+                    {renderFooter()}
+                  </TableCell>
+                </TableRow>
+              </TableFooter>}
             </Table>
           </TableContainer>
           <TablePagination
