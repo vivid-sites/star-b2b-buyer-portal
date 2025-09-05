@@ -32,6 +32,7 @@ interface ListItem {
   invoiceNumber: string;
   orderNumber: string;
   poNumber?: string;
+  pickTicketNumber?: string;
   invoiceDate: string;
   subtotalAmount: string;
   orderStatus: string;
@@ -43,6 +44,7 @@ interface SearchChangeProps {
   poNumber?: string;
   orderNumber?: string;
   invoiceNumber?: string;
+  pickTicketNumber?: string;
 }
 
 function useData() {
@@ -198,6 +200,13 @@ function InvoiceHistory() {
           value: params.invoiceNumber,
         });
       }
+      else if(key === 'pickTicketNumber' && params.pickTicketNumber) {
+        requestData.filter.filters.push({
+          field: 'pickTicketNumber',
+          operator: 'contains',
+          value: params.pickTicketNumber,
+        });
+      }
       else if(key === 'q' && params.q) {
         requestData.filter.filters.push({
           logic: 'or',
@@ -214,6 +223,11 @@ function InvoiceHistory() {
             },
             {
               field: 'invoiceNumber',
+              operator: 'contains',
+              value: params.q
+            },
+            {
+              field: 'pickTicketNumber',
               operator: 'contains',
               value: params.q
             },
@@ -345,6 +359,13 @@ function InvoiceHistory() {
       isSortable: true,
     },
     {
+      key: 'pickTicketNumber',
+      title: b3Lang('invoiceHistory.pickTicketNumber'),
+      render: ({ pickTicketNumber }) => <Box>{pickTicketNumber || '–'}</Box>,
+      width: '10%',
+      isSortable: true,
+    },
+    {
       key: 'subtotalAmount',
       title: b3Lang('invoiceHistory.subtotalAmount'),
       render: ({ subtotalAmount }) => ordersCurrencyFormat(defaultMoneyFormat, subtotalAmount),
@@ -389,6 +410,7 @@ function InvoiceHistory() {
       poNumber: value?.poNumber || '',
       orderNumber: value?.orderNumber || '',
       invoiceNumber: value?.invoiceNumber || '',
+      pickTicketNumber: value?.pickTicketNumber || '',
     }));
   };
 

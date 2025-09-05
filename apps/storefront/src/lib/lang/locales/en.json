@@ -173,6 +173,7 @@
   "invoiceHistory.subtotalAmount": "Amt",
   "invoiceHistory.invoiceStatus": "Status",
   "invoiceHistory.invoiceDate": "Invoice date",
+  "invoiceHistory.pickTicketNumber": "Pick ticket #",
 
   "invoiceHistoryDetail.backToInvoiceHistory": "Back to In Store Order History",
   "invoiceHistoryDetail.invoiceNumber": "Invoice #{invoiceNumber}",

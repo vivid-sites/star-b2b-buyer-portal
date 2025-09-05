@@ -8,6 +8,7 @@ export interface FilterSearchProps {
   poNumber: string;
   orderNumber: string;
   invoiceNumber: string;
+  pickTicketNumber: string;
   q: string;
 }
 
@@ -22,6 +23,7 @@ export const sortKeys = {
   orderNumber: 'orderNumber',
   status: 'status',
   invoiceDate: 'invoiceDate',
+  pickTicketNumber: 'pickTicketNumber',
 };
 
 export function assertSortKey(key: string): asserts key is keyof typeof sortKeys {
@@ -45,7 +47,7 @@ export const getFilterMoreData = () => {
       size: 'small',
       idLang: 'invoiceHistory.invoiceNumber',
     },
-     {
+    {
       name: 'orderNumber',
       label: 'Order #',
       required: false,
@@ -56,7 +58,7 @@ export const getFilterMoreData = () => {
       size: 'small',
       idLang: 'invoiceHistory.orderNumber',
     },
-   {
+    {
       name: 'poNumber',
       label: 'PO / Reference #',
       required: false,
@@ -66,6 +68,17 @@ export const getFilterMoreData = () => {
       variant: 'filled',
       size: 'small',
       idLang: 'invoiceHistory.poReference',
+    },
+    {
+      name: 'pickTicketNumber',
+      label: 'Pick Ticket #',
+      required: false,
+      default: '',
+      fieldType: 'text',
+      xs: 12,
+      variant: 'filled',
+      size: 'small',
+      idLang: 'invoiceHistory.pickTicketNumber',
     }
   ];
 
@@ -80,6 +93,7 @@ export const getInitFilter = (selectedCompanyId: number): Partial<FilterSearchPr
     poNumber: '',
     orderNumber: '',
     invoiceNumber: '',
+    pickTicketNumber: '',
     companyIds: [selectedCompanyId],
     q: '',
   };
