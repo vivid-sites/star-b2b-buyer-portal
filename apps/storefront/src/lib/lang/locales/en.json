@@ -170,7 +170,7 @@
   "invoiceHistory.invoiceNumber": "Invoice #",
   "invoiceHistory.poReference": "PO / Reference",
   "invoiceHistory.orderNumber": "Order #",
-  "invoiceHistory.subtotalAmount": "Amt",
+  "invoiceHistory.invoiceValue": "Amt",
   "invoiceHistory.invoiceStatus": "Status",
   "invoiceHistory.invoiceDate": "Invoice date",
   "invoiceHistory.pickTicketNumber": "Pick ticket #",

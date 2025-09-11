@@ -16,7 +16,6 @@ export interface InvoiceHistoryDetailsState {
 	pickTicketNumber?: number | null;
 	orderDate?: string | null;
 	orderStatus: string;
-	subtotalAmount?: number | null;
 	shippingAddress?: InvoiceHistoryAddress;
 	billingAddress?: InvoiceHistoryAddress;
 	invoiceValue: number;
@@ -59,7 +58,6 @@ const initState = {
   invoiceSummary: {
     invoiceNumber: '',
     invoiceDate: '',
-    subtotalAmount: '',
     invoiceValue: '',
     freight: '',
     salesTax: '',

@@ -12,7 +12,7 @@ interface ListItem {
   orderNumber: string;
   poNumber?: string;
   invoiceDate: string;
-  subtotalAmount: string;
+  invoiceValue: string;
   orderStatus: string;
 }
 
@@ -80,7 +80,7 @@ export function InvoiceHistoryCard({ item, goToDetail }: InvoiceHistoryCardProps
             minHeight: '1.43em',
           }}
         >
-          {currencyFormat(item.subtotalAmount)}
+          {currencyFormat(item.invoiceValue)}
         </Typography>
 
         <Box

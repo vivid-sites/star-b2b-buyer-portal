@@ -21,7 +21,6 @@ const getInvoiceSummary = (data: InvoiceHistorySummary) => {
     poNumber,
     pickTicketNumber,
     deliveryInstructions,
-    subtotalAmount,
     freight,
     salesTax,
     invoiceValue,
@@ -35,7 +34,6 @@ const getInvoiceSummary = (data: InvoiceHistorySummary) => {
     orderNumber: orderNumber,
     pickTicketNumber: pickTicketNumber,
     deliveryInstructions: deliveryInstructions,
-    subtotalAmount: formatPrice(subtotalAmount || ''),
     invoiceValue: formatPrice(invoiceValue),
     freight: formatPrice(freight || ''),
     salesTax: formatPrice(salesTax || '')

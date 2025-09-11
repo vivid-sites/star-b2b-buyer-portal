@@ -9,7 +9,6 @@ export interface InvoiceHistorySummary {
 	pickTicketNumber?: number | null;
 	orderDate?: string | null;
 	orderStatus: string;
-	subtotalAmount?: number | null;
 	shippingAddress?: InvoiceHistoryAddress;
 	billingAddress?: InvoiceHistoryAddress;
 	deliveryInstructions?: string | null;
@@ -67,7 +66,6 @@ export interface InvoiceSummary {
   orderNumber?: string | null;
   pickTicketNumber?: number | null;
   deliveryInstructions?: string | null;
-  subtotalAmount: string;
   freight?: string | null;
   salesTax?: string | null;
   invoiceValue: string;

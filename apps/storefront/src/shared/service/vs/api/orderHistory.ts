@@ -26,7 +26,6 @@ export const getOrderHistoryDetails = (invoiceNumber: string): Promise<InvoiceHi
       pickTicketNumber: res.pickTicketNumber,
       orderDate: res.orderDate,
       orderStatus: res.orderStatus,
-      subtotalAmount: res.subtotalAmount,
       shippingAddress: {
         name: res.shipToName,
         address1: res.shipToAddress,

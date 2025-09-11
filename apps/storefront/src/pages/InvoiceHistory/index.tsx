@@ -34,7 +34,7 @@ interface ListItem {
   poNumber?: string;
   pickTicketNumber?: string;
   invoiceDate: string;
-  subtotalAmount: string;
+  invoiceValue: string;
   orderStatus: string;
 }
 
@@ -366,19 +366,19 @@ function InvoiceHistory() {
       isSortable: true,
     },
     {
-      key: 'subtotalAmount',
-      title: b3Lang('invoiceHistory.subtotalAmount'),
-      render: ({ subtotalAmount }) => ordersCurrencyFormat(defaultMoneyFormat, subtotalAmount),
+      key: 'invoiceValue',
+      title: b3Lang('invoiceHistory.invoiceValue'),
+      render: ({ invoiceValue }) => ordersCurrencyFormat(defaultMoneyFormat, invoiceValue),
       align: 'right',
       width: '8%',
-      isSortable: true,
+      isSortable: false,
     },
     {
       key: 'orderStatus',
       title: b3Lang('invoiceHistory.invoiceStatus'),
       render: ({ orderStatus }) => <InvoiceHistoryStatus status={orderStatus} />,
       width: '10%',
-      isSortable: true,
+      isSortable: false,
     },
     {
       key: 'invoiceDate',
@@ -492,7 +492,7 @@ function InvoiceHistory() {
           )}
           renderFooter={() => (
             <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Typography><strong>{b3Lang('invoiceHistory.total')}:</strong> {ordersCurrencyFormat(defaultMoneyFormat, data?.edges?.reduce((acc, curr) => acc + Number(curr.subtotalAmount), 0) || '')}</Typography>
+              <Typography><strong>{b3Lang('invoiceHistory.total')}:</strong> {ordersCurrencyFormat(defaultMoneyFormat, data?.edges?.reduce((acc, curr) => acc + Number(curr.invoiceValue), 0) || '')}</Typography>
             </Box>
           )}
           onClickRow={goToDetail}
