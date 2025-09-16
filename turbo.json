@@ -6,23 +6,15 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
+    "build:staging": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
     "lint": {},
     "format": {},
     "dev": {
       "cache": false,
       "persistent": true
-    },
-    "build:dev": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/**"]
-    },
-    "build:staging": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/**"]
-    },
-    "build:tier1": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/**"]
     },
     "test": {
       "dependsOn": ["^build"],

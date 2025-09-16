@@ -4,8 +4,6 @@ import { LOGIN_LANDING_LOCATIONS } from '@/constants';
 import { CustomStyleButtonState } from '@/shared/customStyleButton/context/config';
 import { DispatchProps } from '@/shared/global/context/config';
 import {
-  getB2BRegisterLogo,
-  getBCStoreChannelId,
   getCurrencies,
   getStoreConfigsSwitchStatus,
   getStorefrontConfig,
@@ -18,14 +16,15 @@ import { store } from '@/store';
 import {
   setBlockPendingAccountViewPrice,
   setBlockPendingQuoteNonPurchasableOOS,
+  setFeatureFlags,
   setLoginLandingLocation,
   setQuoteSubmissionResponse,
   setShowInclusiveTaxPrice,
-  setStoreInfo,
   setTaxZoneRates,
 } from '@/store/slices/global';
 import { setActiveCurrency, setCurrencies } from '@/store/slices/storeConfigs';
 import { B3SStorage, channelId } from '@/utils';
+import { FeatureFlagKey, featureFlags } from '@/utils/featureFlags';
 
 interface StorefrontKeysProps {
   key: string;
@@ -165,6 +164,7 @@ const storefrontKeys: StorefrontKeysProps[] = [
     key: 'quote_submission_response',
     name: 'quoteSubmissionResponse',
   },
+  ...featureFlags,
 ];
 
 const getTemPlateConfig = async (dispatch: any, dispatchGlobal: any) => {
@@ -294,6 +294,14 @@ const getTemPlateConfig = async (dispatch: any, dispatchGlobal: any) => {
         );
       }
 
+      if (featureFlags.some((ff) => ff.key === storefrontKey.key)) {
+        store.dispatch(
+          setFeatureFlags({
+            [storefrontKey.key as FeatureFlagKey]: item.value === '1',
+          }),
+        );
+      }
+
       (obj as CustomFieldItems)[(storefrontKey as StorefrontKeysProps).name] = {
         ...item.extraFields,
         enabled: item.value === '1',
@@ -314,17 +322,6 @@ const getTemPlateConfig = async (dispatch: any, dispatchGlobal: any) => {
     type: 'merge',
     payload: {
       ...obj,
-    },
-  });
-};
-
-const getQuoteConfig = async (dispatch: DispatchProps) => {
-  const { quoteConfig } = await getB2BRegisterLogo();
-
-  dispatch({
-    type: 'common',
-    payload: {
-      quoteConfig,
     },
   });
 };
@@ -394,17 +391,4 @@ const getStoreTaxZoneRates = async () => {
   store.dispatch(setTaxZoneRates(taxZoneRates));
 };
 
-const getStoreInfo = async () => {
-  const { storeBasicInfo } = await getBCStoreChannelId();
-  const [storeInfo] = storeBasicInfo.storeSites;
-
-  store.dispatch(setStoreInfo(storeInfo));
-};
-
-export {
-  getQuoteConfig,
-  getStoreInfo,
-  getStoreTaxZoneRates,
-  getTemPlateConfig,
-  setStorefrontConfig,
-};
+export { getStoreTaxZoneRates, getTemPlateConfig, setStorefrontConfig };

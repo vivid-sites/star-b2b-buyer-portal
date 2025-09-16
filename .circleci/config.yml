@@ -15,7 +15,8 @@ commands:
     steps:
       - restore_cache:
           keys:
-            - node-modules-cache-i1-{{ checksum "package.json" }}
+            # Change this back to `package.json` when we remove the monorepo
+            - node-modules-cache-i1-{{ checksum "yarn.lock" }}
 
       - run:
           name: Enable corepack
@@ -36,7 +37,7 @@ commands:
 
       - save_cache:
           name: Saving node_modules cache
-          key: node-modules-cache-i1-{{ checksum "package.json" }}
+          key: node-modules-cache-i1-{{ checksum "yarn.lock" }}
           paths:
             - /tmp/bc/caches
 
@@ -59,6 +60,8 @@ jobs:
       - test-coverage-reporter/store-report:
           coverage-format: lcov
           additional-args: ./apps/storefront/coverage/lcov.info
+      - store_test_results:
+          path: ./apps/storefront/coverage/junit.xml
       - store_artifacts:
           path: ./apps/storefront/coverage/lcov-report
 
@@ -78,11 +81,13 @@ jobs:
     steps:
       - ci/pre-setup
       - install-dependencies
-      - ci/gcloud_login
       - run:
           name: "Build distribution files"
+          command: yarn build
+      - ci/gcloud_login
+      - run:
+          name: "Publish build files"
           command: |
-             yarn build:production
              mv apps/storefront/dist ${CIRCLE_SHA1}
              mv config ${CIRCLE_SHA1}
              tar zcf ${CIRCLE_SHA1}.tar.gz ${CIRCLE_SHA1}

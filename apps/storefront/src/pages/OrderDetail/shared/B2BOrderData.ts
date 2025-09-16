@@ -122,7 +122,7 @@ const getOrderSummary = (data: B2BOrderData, b3Lang: LangFormatFunction) => {
   const labels = {
     subTotal: b3Lang('orderDetail.summary.subTotal'),
     shipping: b3Lang('orderDetail.summary.shipping'),
-    handingFee: b3Lang('orderDetail.summary.handingFee'),
+    handingFee: b3Lang('orderDetail.summary.handlingFee'),
     discountAmount: b3Lang('orderDetail.summary.discountAmount'),
     ...couponLabel,
     tax: b3Lang('orderDetail.summary.tax'),
@@ -194,9 +194,15 @@ const handleProductQuantity = (data: B2BOrderData) => {
   return newProducts;
 };
 
+const getDigitalProducts = (products: OrderProductItem[]) => {
+  return products.filter((product) => product.type === 'digital');
+};
+
 const convertB2BOrderDetails = (data: B2BOrderData, b3Lang: LangFormatFunction) => ({
   shippings: getOrderShipping(data),
   billings: getOrderBilling(data),
+  digitalProducts: getDigitalProducts(data.products),
+  billingAddress: data.billingAddress || {},
   history: data.orderHistoryEvent || [],
   poNumber: data.poNumber || '',
   status: data.status,

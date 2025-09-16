@@ -20,7 +20,7 @@ import { when } from 'vitest-when';
 import { SearchProductsResponse } from '@/shared/service/b2b/graphql/product';
 import { CustomerShoppingListB2B } from '@/shared/service/b2b/graphql/shoppingList';
 import { GetCart } from '@/shared/service/bc/graphql/cart';
-import { CompanyStatus, UserTypes } from '@/types';
+import { CompanyStatus, CustomerRole, UserTypes } from '@/types';
 
 import ShoppingListDetailsContent from '.';
 
@@ -136,7 +136,7 @@ const buildShoppingListGraphQLResponseWith = builder<CustomerShoppingListB2B>(()
 
 const b2bCompanyWithShoppingListPermissions = buildCompanyStateWith({
   companyInfo: { status: CompanyStatus.APPROVED },
-  customer: { userType: UserTypes.MULTIPLE_B2C },
+  customer: { userType: UserTypes.MULTIPLE_B2C, role: CustomerRole.SENIOR_BUYER },
   permissions: [
     { code: 'create_shopping_list', permissionLevel: 1 },
     { code: 'approve_draft_shopping_list', permissionLevel: 1 },
@@ -147,6 +147,7 @@ const b2bCompanyWithShoppingListPermissions = buildCompanyStateWith({
 type SearchB2BProduct = SearchProductsResponse['data']['productsSearch'][number];
 type SearchB2BProductV3Option = SearchB2BProduct['optionsV3'][number];
 type SearchB2BProductV3OptionValue = SearchB2BProductV3Option['option_values'][number];
+type SearchB2BProductVariants = SearchB2BProduct['variants'][number];
 
 const buildSearchB2BProductV3OptionValueWith = builder<SearchB2BProductV3OptionValue>(() => ({
   id: faker.number.int(),
@@ -169,6 +170,31 @@ const buildSearchB2BProductV3OptionWith = builder<SearchB2BProductV3Option>(() =
   config: [],
 }));
 
+const buildSearchB2BProductVariantWith = builder<SearchB2BProductVariants>(() => ({
+  variant_id: faker.number.int({ min: 1, max: 10000 }),
+  product_id: faker.number.int(),
+  sku: faker.number.int().toString(),
+  option_values: Array.from({ length: faker.number.int({ min: 0, max: 10 }) }, () => ({
+    id: faker.number.int(),
+    label: faker.commerce.productAdjective(),
+    option_id: faker.number.int(),
+    option_display_name: faker.commerce.productMaterial(),
+  })),
+  calculated_price: Number(faker.commerce.price()),
+  image_url: faker.image.url(),
+  has_price_list: faker.datatype.boolean(),
+  bulk_prices: [],
+  purchasing_disabled: faker.datatype.boolean(),
+  cost_price: Number(faker.commerce.price()),
+  inventory_level: faker.number.int(),
+  bc_calculated_price: {
+    as_entered: Number(faker.commerce.price()),
+    tax_inclusive: Number(faker.commerce.price()),
+    tax_exclusive: Number(faker.commerce.price()),
+    entered_inclusive: faker.datatype.boolean(),
+  },
+}));
+
 const buildSearchB2BProductWith = builder<SearchB2BProduct>(() => ({
   id: faker.number.int(),
   name: faker.commerce.productName(),
@@ -179,30 +205,9 @@ const buildSearchB2BProductWith = builder<SearchB2BProduct>(() => ({
   availability: faker.helpers.arrayElement(['available', 'unavailable']),
   orderQuantityMinimum: faker.number.int(),
   orderQuantityMaximum: faker.number.int(),
-  variants: Array.from({ length: faker.number.int({ min: 0, max: 10 }) }, () => ({
-    variant_id: faker.number.int({ min: 1, max: 10000 }),
-    product_id: faker.number.int(),
-    sku: faker.number.int().toString(),
-    option_values: Array.from({ length: faker.number.int({ min: 0, max: 10 }) }, () => ({
-      id: faker.number.int(),
-      label: faker.commerce.productAdjective(),
-      option_id: faker.number.int(),
-      option_display_name: faker.commerce.productMaterial(),
-    })),
-    calculated_price: Number(faker.commerce.price()),
-    image_url: faker.image.url(),
-    has_price_list: faker.datatype.boolean(),
-    bulk_prices: [],
-    purchasing_disabled: faker.datatype.boolean(),
-    cost_price: Number(faker.commerce.price()),
-    inventory_level: faker.number.int(),
-    bc_calculated_price: {
-      as_entered: Number(faker.commerce.price()),
-      tax_inclusive: Number(faker.commerce.price()),
-      tax_exclusive: Number(faker.commerce.price()),
-      entered_inclusive: faker.datatype.boolean(),
-    },
-  })),
+  variants: bulk(buildSearchB2BProductVariantWith, 'WHATEVER_VALUES').times(
+    faker.number.int({ min: 0, max: 10 }),
+  ),
   currencyCode: faker.finance.currencyCode(),
   imageUrl: faker.image.url(),
   modifiers: [],
@@ -255,6 +260,102 @@ const buildVariantInfoResponseWith = builder<VariantInfoResponse>(() => ({
     variantSku: bulk(buildVariantInfoWith, 'WHATEVER_VALUES').times(
       faker.number.int({ min: 1, max: 5 }),
     ),
+  },
+}));
+
+const buildPrice = builder(() => ({
+  asEntered: Number(faker.commerce.price()),
+  enteredInclusive: faker.datatype.boolean(),
+  taxExclusive: Number(faker.commerce.price()),
+  taxInclusive: Number(faker.commerce.price()),
+  calculatedPrice: Number(faker.commerce.price()),
+}));
+
+const buildProductPriceWith = builder(() => ({
+  productId: faker.number.int(),
+  variantId: faker.number.int(),
+  options: [],
+  referenceRequest: {
+    productId: faker.number.int(),
+    variantId: faker.number.int(),
+    options: null,
+  },
+  retailPrice: null,
+  salePrice: null,
+  minimumAdvertisedPrice: null,
+  saved: null,
+  price: buildPrice('WHATEVER_VALUES'),
+  calculatedPrice: buildPrice('WHATEVER_VALUES'),
+  priceRange: {
+    minimum: buildPrice('WHATEVER_VALUES'),
+    maximum: buildPrice('WHATEVER_VALUES'),
+  },
+  retailPriceRange: null,
+  bulkPricing: [],
+}));
+
+const buildShoppingListItemWith = builder(() => ({
+  itemId: faker.number.int(),
+  productId: faker.number.int(),
+  variantId: faker.number.int(),
+  productName: faker.commerce.productName(),
+  variantSku: faker.string.uuid(),
+  quantity: faker.number.int({ min: 1, max: 10 }),
+  optionList: JSON.stringify([]),
+  basePrice: faker.commerce.price(),
+  tax: '0.00',
+  discount: '0.00',
+}));
+
+const buildB2BShoppingListsItemsCreateResponseWith = builder(() => ({
+  data: {
+    shoppingListsItemsCreate: {
+      shoppingListsItems: bulk(buildShoppingListItemWith, 'WHATEVER_VALUES').times(
+        faker.number.int({ min: 1, max: 5 }),
+      ),
+    },
+  },
+}));
+
+const buildCSVProductWith = builder(() => ({
+  id: faker.string.uuid(),
+  products: {
+    productId: faker.number.int().toString(),
+    variantId: faker.number.int().toString(),
+    itemId: faker.number.int(),
+    productName: faker.commerce.productName(),
+    variantSku: faker.string.uuid(),
+    quantity: faker.number.int({ min: 1, max: 10 }),
+    basePrice: faker.commerce.price(),
+    option: [],
+    modifiers: [],
+    purchasingDisabled: '0',
+  },
+  qty: faker.number.int({ min: 1, max: 10 }).toString(),
+}));
+
+const buildProductUploadResponseWith = builder(() => ({
+  data: {
+    productUpload: {
+      result: {
+        errorFile: '',
+        errorProduct: [],
+        validProduct: bulk(buildCSVProductWith, 'WHATEVER_VALUES')
+          .times(faker.number.int({ min: 1, max: 5 }))
+          .map((product) => ({
+            ...product,
+            id: faker.number.int(),
+            products: {
+              ...product.products,
+              itemId: parseInt(product.products.variantId, 10),
+              id: faker.number.int(),
+            },
+            row: faker.number.int(),
+          })),
+        stockErrorFile: '',
+        stockErrorSkus: [],
+      },
+    },
   },
 }));
 
@@ -1097,6 +1198,10 @@ describe('when shopping list products verify inventory into add to cart', () => 
     });
 
     const searchProductsQuerySpy = vi.fn();
+    const getShoppingList = vi.fn();
+
+    when(getShoppingList).calledWith().thenReturn(shoppingListResponse);
+
     server.use(
       graphql.query('B2BShoppingListDetails', async () => HttpResponse.json(shoppingListResponse)),
       graphql.query('SearchProducts', ({ query }) => {
@@ -1143,5 +1248,394 @@ describe('when shopping list products verify inventory into add to cart', () => 
     await screen.findByText('1 product(s) were not added to cart, please change the quantity');
 
     spy.mockRestore();
+  });
+});
+
+describe('Add to quote', () => {
+  it('add shopping list to draft quote', async () => {
+    vitest.mocked(useParams).mockReturnValue({ id: '272989' });
+    // const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const getVariantInfoBySkus = vi.fn();
+    const searchProductsQuerySpy = vi.fn();
+
+    const variantInfo = buildVariantInfoWith({
+      variantSku: 'LVLY-SK-123',
+      maxQuantity: 3,
+      purchasingDisabled: '0',
+      isStock: '1',
+      stock: 5,
+    });
+
+    when(getVariantInfoBySkus)
+      .calledWith(expect.stringContaining('variantSkus: ["LVLY-SK-123"]'))
+      .thenDo(() => buildVariantInfoResponseWith({ data: { variantSku: [variantInfo] } }));
+
+    const lovelySocksProductEdge = buildShoppingListProductEdgeWith({
+      node: {
+        productName: 'Lovely socks',
+        productId: 73737,
+        variantSku: 'LVLY-SK-123',
+        productNote: 'Decorative wool socks',
+        primaryImage: 'https://example.com/socks.jpg',
+        basePrice: '49.00',
+        tax: '0.00',
+        discount: '0.00',
+        quantity: 4,
+        optionList: JSON.stringify([
+          { valueLabel: 'color', valueText: 'red' },
+          { valueLabel: 'size', valueText: 'large' },
+        ]),
+      },
+    });
+
+    const shoppingListResponse = buildShoppingListGraphQLResponseWith({
+      data: {
+        shoppingList: { products: { totalCount: 1, edges: [lovelySocksProductEdge] }, status: 0 },
+      },
+    });
+
+    const lovelySocksSearchProduct = buildSearchB2BProductWith({
+      id: lovelySocksProductEdge.node.productId,
+      name: lovelySocksProductEdge.node.productName,
+      isPriceHidden: false,
+      sku: lovelySocksProductEdge.node.variantSku,
+      variants: [
+        buildSearchB2BProductVariantWith({
+          sku: lovelySocksProductEdge.node.variantSku,
+        }),
+      ],
+      optionsV3: [
+        buildSearchB2BProductV3OptionWith({
+          display_name: 'Size',
+          option_values: [
+            buildSearchB2BProductV3OptionValueWith({ label: 'large', is_default: true }),
+          ],
+        }),
+      ],
+    });
+
+    server.use(
+      graphql.query('B2BShoppingListDetails', async () => HttpResponse.json(shoppingListResponse)),
+      graphql.query('SearchProducts', ({ query }) => {
+        searchProductsQuerySpy(query);
+
+        return HttpResponse.json(
+          buildSearchProductsResponseWith({ data: { productsSearch: [lovelySocksSearchProduct] } }),
+        );
+      }),
+      graphql.query('GetVariantInfoBySkus', ({ query }) =>
+        HttpResponse.json(getVariantInfoBySkus(query)),
+      ),
+      graphql.query('getCart', () =>
+        HttpResponse.json<GetCart>({ data: { site: { cart: null } } }),
+      ),
+    );
+
+    renderWithProviders(<ShoppingListDetailsContent setOpenPage={() => {}} />, {
+      preloadedState: { company: b2bCompanyWithShoppingListPermissions },
+      initialGlobalContext: { productQuoteEnabled: true, shoppingListEnabled: true },
+    });
+
+    await screen.findByRole('heading', { name: /add to list/i });
+
+    const row = screen.getByRole('row', { name: /Lovely socks/ });
+
+    expect(within(row).getByText('Lovely socks')).toBeInTheDocument();
+    expect(within(row).getByRole('cell', { name: '4' })).toBeInTheDocument();
+
+    const checkbox = within(row).getByRole('checkbox');
+
+    await userEvent.click(checkbox);
+
+    expect(within(row).getByRole('checkbox')).toBeChecked();
+
+    await userEvent.click(screen.getByRole('button', { name: /Add selected to/ }));
+
+    await userEvent.click(screen.getByRole('menuitem', { name: /Add selected to quote/ }));
+
+    await screen.findByText('Products were added to your quote');
+  });
+});
+
+describe('CSV upload and add to quote flow', () => {
+  it('should successfully upload CSV products and add them to quote', async () => {
+    vitest.mocked(useParams).mockReturnValue({ id: '272989' });
+
+    const initialShoppingList = buildShoppingListGraphQLResponseWith({
+      data: {
+        shoppingList: {
+          name: 'Shopping List 1',
+          id: '272989',
+          status: 0,
+          products: {
+            totalCount: 0,
+            edges: [],
+          },
+        },
+      },
+    });
+
+    const csvProducts = [
+      buildCSVProductWith({
+        id: 'CSV-001',
+        products: {
+          productId: '73737',
+          variantId: '12345',
+          itemId: 12346,
+          productName: 'CSV Product 1',
+          variantSku: 'CSV-001',
+          quantity: 2,
+          basePrice: '29.99',
+        },
+        qty: '2',
+      }),
+      buildCSVProductWith({
+        id: 'CSV-002',
+        products: {
+          productId: '73738',
+          variantId: '12346',
+          itemId: 12345,
+          productName: 'CSV Product 2',
+          variantSku: 'CSV-002',
+          quantity: 3,
+          basePrice: '19.99',
+        },
+        qty: '3',
+      }),
+    ];
+
+    const updatedShoppingList = buildShoppingListGraphQLResponseWith({
+      data: {
+        shoppingList: {
+          status: 0,
+          products: {
+            totalCount: csvProducts.length,
+            edges: csvProducts.map((csvProduct) =>
+              buildShoppingListProductEdgeWith({
+                node: {
+                  productId: parseInt(csvProduct.products.productId, 10),
+                  variantId: parseInt(csvProduct.products.variantId, 10),
+                  productName: csvProduct.products.productName,
+                  variantSku: csvProduct.products.variantSku,
+                  quantity: parseInt(csvProduct.qty, 10),
+                  basePrice: csvProduct.products.basePrice,
+                  tax: '0.00',
+                  discount: '0.00',
+                  optionList: '[]',
+                },
+              }),
+            ),
+          },
+        },
+      },
+    });
+
+    let currentShoppingList = initialShoppingList;
+
+    server.use(
+      graphql.query('B2BShoppingListDetails', async () => {
+        return HttpResponse.json(currentShoppingList);
+      }),
+      graphql.mutation('B2BShoppingListsItemsCreate', () => {
+        const shoppingListProducts = csvProducts.map((csvProduct) =>
+          buildShoppingListProductEdgeWith({
+            node: {
+              itemId: csvProduct.products.itemId,
+              productId: parseInt(csvProduct.products.productId, 10),
+              variantId: parseInt(csvProduct.products.variantId, 10),
+              productName: csvProduct.products.productName,
+              variantSku: csvProduct.products.variantSku,
+              quantity: parseInt(csvProduct.qty, 10),
+              basePrice: '29.99',
+              tax: '0.00',
+              discount: '0.00',
+              optionList: JSON.stringify([]),
+              primaryImage: '',
+              productNote: '',
+            },
+          }),
+        );
+
+        // Update the current shopping list to include the newly added products
+        currentShoppingList = buildShoppingListGraphQLResponseWith({
+          data: {
+            shoppingList: {
+              name: 'Shopping List 1',
+              status: 30,
+              id: '272989',
+              products: {
+                totalCount: csvProducts.length,
+                edges: shoppingListProducts,
+              },
+            },
+          },
+        });
+
+        return HttpResponse.json(
+          buildB2BShoppingListsItemsCreateResponseWith({
+            data: {
+              shoppingListsItemsCreate: {
+                shoppingListsItems: csvProducts.map((csvProduct) =>
+                  buildShoppingListItemWith({
+                    itemId: parseInt(csvProduct.products.variantId, 10),
+                    productId: parseInt(csvProduct.products.productId, 10),
+                    variantId: parseInt(csvProduct.products.variantId, 10),
+                    productName: csvProduct.products.productName,
+                    variantSku: csvProduct.products.variantSku,
+                    quantity: parseInt(csvProduct.qty, 10),
+                  }),
+                ),
+              },
+            },
+          }),
+        );
+      }),
+      graphql.query('SearchProducts', () => {
+        const response = {
+          data: {
+            productsSearch: csvProducts.map((csvProduct) =>
+              buildSearchB2BProductWith({
+                id: parseInt(csvProduct.products.productId, 10),
+                name: csvProduct.products.productName,
+                sku: csvProduct.products.variantSku,
+                isPriceHidden: false,
+                variants: [
+                  buildSearchB2BProductVariantWith({
+                    sku: csvProduct.products.variantSku,
+                    variant_id: parseInt(csvProduct.products.variantId, 10),
+                  }),
+                ],
+              }),
+            ),
+          },
+        };
+        return HttpResponse.json(response);
+      }),
+      graphql.query('GetVariantInfoBySkus', () => {
+        const response = buildVariantInfoResponseWith({
+          data: {
+            variantSku: csvProducts.map((csvProduct) =>
+              buildVariantInfoWith({
+                productId: csvProduct.products.productId,
+                variantId: csvProduct.products.variantId,
+                variantSku: csvProduct.products.variantSku,
+                productName: csvProduct.products.productName,
+                isStock: '1',
+                stock: 100,
+                purchasingDisabled: '0',
+              }),
+            ),
+          },
+        });
+        return HttpResponse.json(response);
+      }),
+      graphql.query('priceProducts', () => {
+        return HttpResponse.json({
+          data: {
+            priceProducts: csvProducts.map((csvProduct) =>
+              buildProductPriceWith({
+                productId: parseInt(csvProduct.products.productId, 10),
+                variantId: parseInt(csvProduct.products.variantId, 10),
+                options: [],
+              }),
+            ),
+          },
+        });
+      }),
+      graphql.mutation('AddItemsToShoppingList', () => {
+        return HttpResponse.json({
+          data: {
+            shoppingListsItemsCreate: {
+              shoppingListsItems: csvProducts.map((csvProduct) =>
+                buildShoppingListItemWith({
+                  itemId: parseInt(csvProduct.products.variantId, 10),
+                  productId: parseInt(csvProduct.products.productId, 10),
+                  variantId: parseInt(csvProduct.products.variantId, 10),
+                  productName: csvProduct.products.productName,
+                  variantSku: csvProduct.products.variantSku,
+                  quantity: parseInt(csvProduct.qty, 10),
+                }),
+              ),
+            },
+          },
+        });
+      }),
+      graphql.mutation('ProductUpload', () => {
+        currentShoppingList = updatedShoppingList;
+        return HttpResponse.json(
+          buildProductUploadResponseWith({
+            data: {
+              productUpload: {
+                result: {
+                  validProduct: csvProducts.map((product, index) => ({
+                    ...product,
+                    id: 33223,
+                    products: {
+                      ...product.products,
+                      itemId: parseInt(product.products.variantId, 10),
+                      id: 33223,
+                    },
+                    row: index + 1,
+                  })),
+                },
+              },
+            },
+          }),
+        );
+      }),
+    );
+
+    renderWithProviders(<ShoppingListDetailsContent setOpenPage={() => {}} />, {
+      preloadedState: { company: b2bCompanyWithShoppingListPermissions },
+      initialGlobalContext: {
+        productQuoteEnabled: true,
+        shoppingListEnabled: true,
+      },
+    });
+
+    await screen.findByRole('heading', { name: /add to list/i });
+
+    const uploadButton = screen.getByRole('button', { name: /bulk upload csv/i });
+    await userEvent.click(uploadButton);
+
+    const dialog = await screen.findByRole('dialog', { name: /bulk upload/i });
+
+    const csvContent = 'variant_sku,qty\nCSV-001,2\nCSV-002,3';
+    const file = new File([csvContent], 'products.csv', { type: 'text/csv' });
+
+    const dropzoneInput = dialog.querySelector('input[type="file"]') as HTMLInputElement;
+    if (!dropzoneInput) {
+      throw new Error('File input not found');
+    }
+
+    const files = [file];
+
+    await userEvent.upload(dropzoneInput, files);
+
+    await within(dialog).findByText('products.csv');
+    await within(dialog).findByText('products.csv');
+
+    const addToListButton = screen.getByRole('button', { name: /add to list/i });
+    await userEvent.click(addToListButton);
+
+    expect(await screen.findByText('CSV Product 1')).toBeInTheDocument();
+    expect(await screen.findByText('CSV Product 2')).toBeInTheDocument();
+
+    const row = screen.getByRole('row', { name: /CSV Product 1/i });
+
+    const checkbox = within(row).getByRole('checkbox');
+
+    await userEvent.click(checkbox);
+
+    expect(within(row).getByRole('checkbox')).toBeChecked();
+
+    await userEvent.click(screen.getByRole('button', { name: /Add selected to/ }));
+
+    const addToQuoteOption = screen.getByRole('menuitem', { name: /add selected to quote/i });
+    await userEvent.click(addToQuoteOption);
+
+    await screen.findByText(/products were added to your quote/i);
+    expect(screen.getByText(/view quote/i)).toBeInTheDocument();
   });
 });

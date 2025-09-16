@@ -25,15 +25,14 @@ interface NodeWrapper<T extends object> {
 
 export type PossibleNodeWrapper<T extends object> = T | NodeWrapper<T>;
 
-export const isNodeWrapper = <T extends object>(
-  item: PossibleNodeWrapper<T>,
-): item is NodeWrapper<T> => 'node' in item;
+const isNodeWrapper = <T extends object>(item: PossibleNodeWrapper<T>): item is NodeWrapper<T> =>
+  'node' in item;
 
-export type WithRowControls<T> = T & {
+type WithRowControls<T> = T & {
   id?: string | number;
 };
 
-export interface Pagination {
+interface Pagination {
   offset: number;
   first: number;
   count: number;
@@ -159,6 +158,9 @@ export function B3Table<Row extends OrderIdRow>({
             })}
           </Grid>
           <TablePagination
+            labelDisplayedRows={({ from, to, count }) =>
+              b3Lang('global.pagination.pageXOfY', { from, to, count })
+            }
             rowsPerPageOptions={rowsPerPageOptions}
             labelRowsPerPage={b3Lang('global.pagination.perPage')}
             component="div"
@@ -238,6 +240,9 @@ export function B3Table<Row extends OrderIdRow>({
             </Table>
           </TableContainer>
           <TablePagination
+            labelDisplayedRows={({ from, to, count }) =>
+              b3Lang('global.pagination.pageXOfY', { from, to, count })
+            }
             rowsPerPageOptions={rowsPerPageOptions}
             labelRowsPerPage={b3Lang('global.pagination.rowsPerPage')}
             component="div"

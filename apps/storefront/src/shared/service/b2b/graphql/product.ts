@@ -34,18 +34,6 @@ query GetVariantInfoBySkus {
   }
 }`;
 
-const getSkusInfo = ({ skus = [] }) => `{
-  variantSku (
-    variantSkus: ${convertArrayToGraphql(skus)},
-    storeHash: "${storeHash}"
-    channelId: ${channelId}
-  ){
-    isStock,
-    stock,
-    purchasingDisabled,
-  }
-}`;
-
 const getProductPurchasable = ({ sku = '', isProduct = true, productId }: ProductPurchasable) => `{
   productPurchasable(
     storeHash: "${storeHash}"
@@ -57,15 +45,6 @@ const getProductPurchasable = ({ sku = '', isProduct = true, productId }: Produc
     inventoryLevel
     inventoryTracking
     purchasingDisabled
-  }
-}`;
-
-const getVariantSkuByProductId = (productId: string) => `{
-  productVariantsInfo (
-    productId: "${productId}"
-  ){
-    sku,
-    variantId,
   }
 }`;
 
@@ -104,7 +83,23 @@ const getSearchProductsQuery = (data: CustomFieldItems) => `
   }
 `;
 
-const productsBulkUploadCSV = (data: CustomFieldItems) => `mutation {
+const validateProductQuery = `
+  query ValidateProduct ($productId: Int!, $variantId: Int!, $quantity: Int!, $productOptions: [GenericScalar]) {
+    validateProduct(
+      productId: $productId
+      variantId: $variantId
+      quantity: $quantity
+      productOptions: $productOptions
+      storeHash: "${storeHash}"
+      channelId: ${channelId}
+    ) {
+      responseType
+      message
+    }
+  }
+`;
+
+const productsBulkUploadCSV = (data: CustomFieldItems) => `mutation ProductUpload {
   productUpload (
     productListData: {
       currencyCode: "${data.currencyCode || ''}"
@@ -148,19 +143,9 @@ const productAnonUploadBulkUploadCSV = (data: CustomFieldItems) => `mutation {
 export const getVariantInfoBySkus = (skuList: string[] = []) =>
   B3Request.graphqlB2B({ query: getVariantInfoBySkusQuery(skuList) });
 
-export const getB2BSkusInfo = (data: CustomFieldItems) =>
-  B3Request.graphqlB2B({
-    query: getSkusInfo(data),
-  });
-
 export const getB2BProductPurchasable = (data: ProductPurchasable) =>
   B3Request.graphqlB2B({
     query: getProductPurchasable(data),
-  });
-
-export const getB2BVariantSkuByProductId = (productId: string) =>
-  B3Request.graphqlB2B({
-    query: getVariantSkuByProductId(productId),
   });
 
 export interface B2BProducts {
@@ -301,6 +286,15 @@ export interface SearchProductsResponse {
   };
 }
 
+export interface ValidateProductResponse {
+  data: {
+    validateProduct: {
+      responseType: 'ERROR' | 'WARNING' | 'SUCCESS';
+      message: string;
+    };
+  };
+}
+
 export const searchProducts = (data: CustomFieldItems = {}) => {
   const { currency_code: currencyCode } = getActiveCurrencyInfo();
 
@@ -310,6 +304,23 @@ export const searchProducts = (data: CustomFieldItems = {}) => {
       currencyCode: data?.currencyCode || currencyCode,
     }),
   });
+};
+
+interface ValidateProductVariables {
+  productId: number;
+  variantId: number;
+  quantity: number;
+  productOptions?: {
+    optionId: number;
+    optionValue: string;
+  }[];
+}
+
+export const validateProduct = (data: ValidateProductVariables) => {
+  return B3Request.graphqlB2B<ValidateProductResponse>({
+    query: validateProductQuery,
+    variables: data,
+  }).then((res) => res.validateProduct);
 };
 
 export const B2BProductsBulkUploadCSV = (data: CustomFieldItems = {}) =>

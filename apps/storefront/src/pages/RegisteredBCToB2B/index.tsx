@@ -53,7 +53,7 @@ interface CustomerInfo {
   [k: string]: string;
 }
 
-export const StyledRegisterContent = styled(Box)({
+const StyledRegisterContent = styled(Box)({
   '& #b3-customForm-id-name': {
     '& label[data-shrink="true"]': {
       whiteSpace: 'break-spaces',
@@ -554,9 +554,8 @@ export default function RegisteredBCToB2B(props: PageProps) {
 
         let isCompanyUserValidate = true;
         if (companyUserExtraFields.length > 0) {
-          isCompanyUserValidate = await handleValidateCompanyUserExtraFields(
-            companyUserExtraFields,
-          );
+          isCompanyUserValidate =
+            await handleValidateCompanyUserExtraFields(companyUserExtraFields);
         }
         if (!isCompanyUserValidate) {
           return;
