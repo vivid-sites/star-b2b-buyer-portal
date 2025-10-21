@@ -2915,17 +2915,17 @@
     estraverse "^5.3.0"
     picomatch "^4.0.2"
 
-"@tanstack/query-core@5.80.6":
-  version "5.80.6"
-  resolved "https://registry.yarnpkg.com/@tanstack/query-core/-/query-core-5.80.6.tgz#d2e54fa9eabebc953c675b74b17d6cd45a2a4cb4"
-  integrity sha512-nl7YxT/TAU+VTf+e2zTkObGTyY8YZBMnbgeA1ee66lIVqzKlYursAII6z5t0e6rXgwUMJSV4dshBTNacNpZHbQ==
+"@tanstack/query-core@5.90.5":
+  version "5.90.5"
+  resolved "https://registry.yarnpkg.com/@tanstack/query-core/-/query-core-5.90.5.tgz#0175f9f517514906db8ab379589ed3f96694ecc4"
+  integrity sha512-wLamYp7FaDq6ZnNehypKI5fNvxHPfTYylE0m/ZpuuzJfJqhR5Pxg9gvGBHZx4n7J+V5Rg5mZxHHTlv25Zt5u+w==
 
-"@tanstack/react-query@^5.80.6":
-  version "5.80.6"
-  resolved "https://registry.yarnpkg.com/@tanstack/react-query/-/react-query-5.80.6.tgz#9c77f05f3236b95693caaea155e5eaa4459f0197"
-  integrity sha512-izX+5CnkpON3NQGcEm3/d7LfFQNo9ZpFtX2QsINgCYK9LT2VCIdi8D3bMaMSNhrAJCznRoAkFic76uvLroALBw==
+"@tanstack/react-query@^5.90.5":
+  version "5.90.5"
+  resolved "https://registry.yarnpkg.com/@tanstack/react-query/-/react-query-5.90.5.tgz#545e61282c787bd87ac5785da9a4943462f78ef6"
+  integrity sha512-pN+8UWpxZkEJ/Rnnj2v2Sxpx1WFlaa9L6a4UO89p6tTQbeo+m0MS8oYDjbggrR8QcTyjKoYWKS3xJQGr3ExT8Q==
   dependencies:
-    "@tanstack/query-core" "5.80.6"
+    "@tanstack/query-core" "5.90.5"
 
 "@testing-library/dom@^10.4.1":
   version "10.4.1"
