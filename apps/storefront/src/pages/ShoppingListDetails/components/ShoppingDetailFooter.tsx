@@ -7,14 +7,15 @@ import { v1 as uuid } from 'uuid';
 
 import CustomButton from '@/components/button/CustomButton';
 import { CART_URL, CHECKOUT_URL, PRODUCT_DEFAULT_IMAGE } from '@/constants';
-import { useMobile } from '@/hooks';
+import { useFeatureFlags } from '@/hooks/useFeatureFlags';
+import { useMobile } from '@/hooks/useMobile';
 import { useB3Lang } from '@/lib/lang';
 import { GlobalContext } from '@/shared/global';
 import { getVariantInfoBySkus, searchProducts } from '@/shared/service/b2b/graphql/product';
 import { deleteCart, getCart } from '@/shared/service/bc/graphql/cart';
 import { rolePermissionSelector, useAppSelector } from '@/store';
 import { ShoppingListStatus } from '@/types/shoppingList';
-import { currencyFormat, snackbar } from '@/utils';
+import { currencyFormat } from '@/utils/b3CurrencyFormat';
 import b2bLogger from '@/utils/b3Logger';
 import {
   addQuoteDraftProducts,
@@ -26,8 +27,10 @@ import {
   conversionProductsList,
   ProductsProps,
 } from '@/utils/b3Product/shared/config';
+import { snackbar } from '@/utils/b3Tip';
 import b3TriggerCartNumber from '@/utils/b3TriggerCartNumber';
-import { callCart, deleteCartData, updateCart } from '@/utils/cartUtils';
+import { createOrUpdateExistingCart, deleteCartData, updateCart } from '@/utils/cartUtils';
+import { validateProducts } from '@/utils/validateProducts';
 
 interface ShoppingDetailFooterProps {
   shoppingListInfo: any;
@@ -42,6 +45,7 @@ interface ShoppingDetailFooterProps {
   customColor: string;
   isCanEditShoppingList: boolean;
   role: string | number;
+  backendValidationEnabled: boolean;
 }
 
 interface ProductInfoProps {
@@ -69,10 +73,23 @@ interface ListItemProps {
   node: ProductInfoProps;
 }
 
+const mapToProductsFailedArray = (items: ProductsProps[]) => {
+  return items.map((item: ProductsProps) => {
+    return {
+      ...item,
+      isStock: item.node.productsSearch.inventoryTracking === 'none' ? '0' : '1',
+      minQuantity: item.node.productsSearch.orderQuantityMinimum,
+      maxQuantity: item.node.productsSearch.orderQuantityMaximum,
+      stock: item.node.productsSearch.availableToSell,
+    };
+  });
+};
+
 function ShoppingDetailFooter(props: ShoppingDetailFooterProps) {
   const [isMobile] = useMobile();
   const b3Lang = useB3Lang();
   const navigate = useNavigate();
+  const featureFlags = useFeatureFlags();
 
   const {
     state: { productQuoteEnabled = false },
@@ -112,6 +129,7 @@ function ShoppingDetailFooter(props: ShoppingDetailFooterProps) {
     customColor,
     isCanEditShoppingList,
     role,
+    backendValidationEnabled,
   } = props;
 
   const b2bShoppingListActionsPermission = isB2BUser ? shoppingListCreateActionsPermission : true;
@@ -187,38 +205,124 @@ function ShoppingDetailFooter(props: ShoppingDetailFooterProps) {
     };
   };
 
-  // Add selected product to cart
-  const handleAddProductsToCart = async () => {
-    if (checkedArr.length === 0) {
-      snackbar.error(b3Lang('shoppingList.footer.selectOneItem'));
+  const addToQuote = async (products: CustomFieldItems[]) => {
+    if (featureFlags['B2B-3318.move_stock_and_backorder_validation_to_backend']) {
+      const { success, warning, error } = await validateProducts(products);
+
+      error.forEach((err) => {
+        if (err.error.type === 'network') {
+          snackbar.error(
+            b3Lang('quotes.productValidationFailed', {
+              productName: err.product.node?.productName || '',
+            }),
+          );
+        } else {
+          snackbar.error(err.error.message);
+        }
+      });
+
+      const validProducts = [...success, ...warning].map((product) => product.product);
+
+      addQuoteDraftProducts(validProducts);
+
+      return validProducts.length > 0;
+    }
+
+    addQuoteDraftProducts(products);
+
+    return true;
+  };
+
+  const shouldRedirectCheckout = () => {
+    if (
+      allowJuniorPlaceOrder &&
+      b2bSubmitShoppingListPermission &&
+      shoppingListInfo?.status === ShoppingListStatus.Approved
+    ) {
+      window.location.href = CHECKOUT_URL;
+    } else {
+      snackbar.success(b3Lang('shoppingList.footer.productsAddedToCart'), {
+        action: {
+          label: b3Lang('shoppingList.reAddToCart.viewCart'),
+          onClick: () => {
+            if (window.b2b.callbacks.dispatchEvent('on-click-cart-button')) {
+              window.location.href = CART_URL;
+            }
+          },
+        },
+      });
+      b3TriggerCartNumber();
+    }
+  };
+
+  const handleAddToCartOnFrontend = async () => {
+    const skus: string[] = [];
+
+    let cantPurchase = '';
+
+    checkedArr.forEach((item: ProductsProps) => {
+      const { node } = item;
+
+      if (node.productsSearch.availability === 'disabled') {
+        cantPurchase += `${node.variantSku},`;
+      }
+
+      skus.push(node.variantSku);
+    });
+
+    if (cantPurchase) {
+      snackbar.error(
+        b3Lang('shoppingList.footer.unavailableProducts', {
+          skus: cantPurchase.slice(0, -1),
+        }),
+      );
       return;
     }
 
-    handleClose();
-    setLoading(true);
-    try {
-      const skus: string[] = [];
+    if (skus.length === 0) {
+      snackbar.error(
+        allowJuniorPlaceOrder
+          ? b3Lang('shoppingList.footer.selectItemsToCheckout')
+          : b3Lang('shoppingList.footer.selectItemsToAddToCart'),
+      );
+      return;
+    }
 
-      let cantPurchase = '';
+    const getInventoryInfos = await getVariantInfoBySkus(skus);
 
-      checkedArr.forEach((item: ProductsProps) => {
-        const { node } = item;
+    const { validateFailureArr, validateSuccessArr } = verifyInventory(
+      getInventoryInfos?.variantSku || [],
+    );
 
-        if (node.productsSearch.availability === 'disabled') {
-          cantPurchase += `${node.variantSku},`;
-        }
-
-        skus.push(node.variantSku);
-      });
-
-      if (cantPurchase) {
-        snackbar.error(
-          b3Lang('shoppingList.footer.unavailableProducts', {
-            skus: cantPurchase.slice(0, -1),
-          }),
-        );
-        return;
+    if (validateSuccessArr.length !== 0) {
+      const lineItems = addLineItems(validateSuccessArr);
+      const deleteCartObject = deleteCartData(cartEntityId);
+      const cartInfo = await getCart();
+      let res = null;
+      // @ts-expect-error Keeping it like this to avoid breaking changes, will fix in a following commit.
+      if (allowJuniorPlaceOrder && cartInfo.length) {
+        await deleteCart(deleteCartObject);
+        res = await updateCart(cartInfo, lineItems);
+      } else {
+        res = await createOrUpdateExistingCart(lineItems);
+        b3TriggerCartNumber();
       }
+      if (res && res.errors) {
+        snackbar.error(res.errors[0].message);
+      } else if (validateFailureArr.length === 0) {
+        shouldRedirectCheckout();
+      }
+    }
+
+    setValidateFailureProducts(validateFailureArr);
+    setValidateSuccessProducts(validateSuccessArr);
+  };
+
+  const handleAddToCartBackend = async () => {
+    const items = checkedArr.map(({ node }: ProductsProps) => ({ node }));
+
+    try {
+      const skus = items.map(({ node }: ProductsProps) => node.variantSku);
 
       if (skus.length === 0) {
         snackbar.error(
@@ -229,52 +333,43 @@ function ShoppingDetailFooter(props: ShoppingDetailFooterProps) {
         return;
       }
 
-      const getInventoryInfos = await getVariantInfoBySkus(skus);
-
-      const { validateFailureArr, validateSuccessArr } = verifyInventory(
-        getInventoryInfos?.variantSku || [],
-      );
-
-      if (validateSuccessArr.length !== 0) {
-        const lineItems = addLineItems(validateSuccessArr);
-        const deleteCartObject = deleteCartData(cartEntityId);
-        const cartInfo = await getCart();
-        let res = null;
-        // @ts-expect-error Keeping it like this to avoid breaking changes, will fix in a following commit.
-        if (allowJuniorPlaceOrder && cartInfo.length) {
-          await deleteCart(deleteCartObject);
-          res = await updateCart(cartInfo, lineItems);
-        } else {
-          res = await callCart(lineItems);
-          b3TriggerCartNumber();
-        }
-        if (res && res.errors) {
-          snackbar.error(res.errors[0].message);
-        } else if (validateFailureArr.length === 0) {
-          if (
-            allowJuniorPlaceOrder &&
-            b2bSubmitShoppingListPermission &&
-            shoppingListInfo?.status === ShoppingListStatus.Approved
-          ) {
-            window.location.href = CHECKOUT_URL;
-          } else {
-            snackbar.success(b3Lang('shoppingList.footer.productsAddedToCart'), {
-              action: {
-                label: b3Lang('shoppingList.reAddToCart.viewCart'),
-                onClick: () => {
-                  if (window.b2b.callbacks.dispatchEvent('on-click-cart-button')) {
-                    window.location.href = CART_URL;
-                  }
-                },
-              },
-            });
-            b3TriggerCartNumber();
-          }
-        }
+      const lineItems = addLineItems(items);
+      const deleteCartObject = deleteCartData(items);
+      const cartInfo = await getCart();
+      if (allowJuniorPlaceOrder && cartInfo.data.site.cart) {
+        await deleteCart(deleteCartObject);
+        await updateCart(cartInfo, lineItems);
+      } else {
+        await createOrUpdateExistingCart(lineItems);
+        b3TriggerCartNumber();
       }
+      shouldRedirectCheckout();
+      setValidateSuccessProducts(items);
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        setValidateFailureProducts(mapToProductsFailedArray(items));
+        snackbar.error(e.message);
+      }
+    }
+  };
 
-      setValidateFailureProducts(validateFailureArr);
-      setValidateSuccessProducts(validateSuccessArr);
+  // Add selected product to cart
+  const handleAddProductsToCart = async () => {
+    if (checkedArr.length === 0) {
+      snackbar.error(b3Lang('shoppingList.footer.selectOneItem'));
+      return;
+    }
+
+    const addToCart = backendValidationEnabled ? handleAddToCartBackend : handleAddToCartOnFrontend;
+
+    handleClose();
+
+    setValidateFailureProducts([]);
+    setValidateSuccessProducts([]);
+
+    try {
+      setLoading(true);
+      await addToCart();
     } finally {
       setLoading(false);
     }
@@ -344,7 +439,6 @@ function ShoppingDetailFooter(props: ShoppingDetailFooterProps) {
       });
 
       const newProductInfo: CustomFieldItems = conversionProductsList(productsSearch);
-      let isSuccess = false;
       let errorMessage = '';
       let isFondVariant = true;
 
@@ -385,7 +479,11 @@ function ShoppingDetailFooter(props: ShoppingDetailFooterProps) {
             id: uuid(),
             variantSku: variantItem?.sku || variantSku,
             variantId,
-            productsSearch: currentProductSearch,
+            productsSearch: {
+              ...currentProductSearch,
+              newSelectOptionList: optionsList,
+              variantId,
+            },
             primaryImage: variantItem?.image_url || PRODUCT_DEFAULT_IMAGE,
             productName,
             quantity: Number(quantity) || 1,
@@ -397,11 +495,9 @@ function ShoppingDetailFooter(props: ShoppingDetailFooterProps) {
         };
 
         newProducts.push(quoteListitem);
-
-        isSuccess = true;
       });
 
-      isSuccess = validProductQty(newProducts);
+      const isValidQty = validProductQty(newProducts);
 
       if (!isFondVariant) {
         snackbar.error(errorMessage);
@@ -409,17 +505,20 @@ function ShoppingDetailFooter(props: ShoppingDetailFooterProps) {
         return;
       }
 
-      if (isSuccess) {
+      if (isValidQty) {
         await calculateProductListPrice(newProducts, '2');
-        addQuoteDraftProducts(newProducts);
-        snackbar.success(b3Lang('shoppingList.footer.productsAddedToQuote'), {
-          action: {
-            label: b3Lang('shoppingList.footer.viewQuote'),
-            onClick: () => {
-              navigate('/quoteDraft');
+
+        const success = await addToQuote(newProducts);
+        if (success) {
+          snackbar.success(b3Lang('shoppingList.footer.productsAddedToQuote'), {
+            action: {
+              label: b3Lang('shoppingList.footer.viewQuote'),
+              onClick: () => {
+                navigate('/quoteDraft');
+              },
             },
-          },
-        });
+          });
+        }
       } else {
         snackbar.error(b3Lang('shoppingList.footer.productsLimit'), {
           action: {

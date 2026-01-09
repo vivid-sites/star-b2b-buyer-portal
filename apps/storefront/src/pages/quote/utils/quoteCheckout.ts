@@ -9,25 +9,21 @@ import { getSearchVal } from '@/utils/loginInfo';
 
 interface QuoteCheckout {
   role: string | number;
-  proceedingCheckoutFn: () => boolean;
   location: Location;
   quoteId: string;
+  quoteUuid?: string;
   navigate?: NavigateFunction;
 }
 
 export const handleQuoteCheckout = async ({
   role,
-  proceedingCheckoutFn,
   location,
   quoteId,
+  quoteUuid,
   navigate,
 }: QuoteCheckout) => {
   try {
     store.dispatch(setQuoteDetailToCheckoutUrl(''));
-
-    const isHideQuoteCheckout = proceedingCheckoutFn();
-
-    if (isHideQuoteCheckout) return;
 
     const {
       storefrontProductSettings: { hidePriceFromGuests },
@@ -45,7 +41,7 @@ export const handleQuoteCheckout = async ({
       id: Number(quoteId),
     });
 
-    setQuoteToStorage(quoteId, date);
+    setQuoteToStorage(quoteId, date, quoteUuid);
     const {
       quoteCheckout: {
         quoteCheckout: { checkoutUrl, cartId },

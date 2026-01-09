@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Box, Grid, useTheme } from '@mui/material';
 
 import B3Spin from '@/components/spin/B3Spin';
-import { useMobile } from '@/hooks';
+import { useFeatureFlags } from '@/hooks/useFeatureFlags';
+import { useMobile } from '@/hooks/useMobile';
 import { useB3Lang } from '@/lib/lang';
 import { GlobalContext } from '@/shared/global';
 import {
@@ -24,7 +25,7 @@ import {
 } from '@/store';
 import { CustomerRole } from '@/types/company';
 import { ShoppingListStatus } from '@/types/shoppingList';
-import { channelId, snackbar, verifyLevelPermission } from '@/utils';
+import { verifyLevelPermission } from '@/utils/b3CheckPermissions/check';
 import { b2bPermissionsMap } from '@/utils/b3CheckPermissions/config';
 import { calculateProductListPrice, getBCPrice } from '@/utils/b3Product/b3Product';
 import {
@@ -35,6 +36,8 @@ import {
   SearchProps,
   ShoppingListInfoProps,
 } from '@/utils/b3Product/shared/config';
+import { snackbar } from '@/utils/b3Tip';
+import { channelId } from '@/utils/basicConfig';
 
 import { type PageProps } from '../PageProps';
 
@@ -166,6 +169,10 @@ function ShoppingListDetails({ setOpenPage }: PageProps) {
 
   const tableRef = useRef<TableRefProps | null>(null);
 
+  const featureFlags = useFeatureFlags();
+  const backendValidationEnabled =
+    featureFlags['B2B-3318.move_stock_and_backorder_validation_to_backend'] ?? false;
+
   const [checkedArr, setCheckedArr] = useState<CustomFieldItems>([]);
   const [shoppingListInfo, setShoppingListInfo] = useState<null | ShoppingListInfoProps>(null);
   const [customerInfo, setCustomerInfo] = useState<null | CustomerInfoProps>(null);
@@ -261,8 +268,10 @@ function ShoppingListDetails({ setOpenPage }: PageProps) {
         });
 
         return listProducts;
-      } catch (err: any) {
-        snackbar.error(err);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          snackbar.error(error.message);
+        }
       }
     }
 
@@ -521,6 +530,7 @@ function ShoppingListDetails({ setOpenPage }: PageProps) {
               customColor={primaryColor}
               isCanEditShoppingList={isCanEditShoppingList}
               role={role}
+              backendValidationEnabled={backendValidationEnabled}
             />
           )}
       </Box>
@@ -534,6 +544,7 @@ function ShoppingListDetails({ setOpenPage }: PageProps) {
         setValidateFailureProducts={setValidateFailureProducts}
         setValidateSuccessProducts={setValidateSuccessProducts}
         textAlign={isMobile ? 'left' : 'right'}
+        backendValidationEnabled={backendValidationEnabled}
       />
 
       <ShoppingDetailDeleteItems

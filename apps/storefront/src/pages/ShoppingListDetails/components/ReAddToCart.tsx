@@ -3,24 +3,25 @@ import styled from '@emotion/styled';
 import { Delete } from '@mui/icons-material';
 import { Alert, Box, Grid, Typography } from '@mui/material';
 
-import { B3QuantityTextField } from '@/components';
 import B3Dialog from '@/components/B3Dialog';
+import { B3QuantityTextField } from '@/components/B3QuantityTextField';
 import CustomButton from '@/components/button/CustomButton';
 import B3Spin from '@/components/spin/B3Spin';
 import { CART_URL, CHECKOUT_URL, PRODUCT_DEFAULT_IMAGE } from '@/constants';
-import { useMobile } from '@/hooks';
+import { useMobile } from '@/hooks/useMobile';
 import { useB3Lang } from '@/lib/lang';
 import { activeCurrencyInfoSelector, rolePermissionSelector, useAppSelector } from '@/store';
 import { ShoppingListStatus } from '@/types/shoppingList';
-import { currencyFormat, snackbar } from '@/utils';
+import { currencyFormat } from '@/utils/b3CurrencyFormat';
 import { setModifierQtyPrice } from '@/utils/b3Product/b3Product';
 import {
   addLineItems,
   getProductOptionsFields,
   ProductsProps,
 } from '@/utils/b3Product/shared/config';
+import { snackbar } from '@/utils/b3Tip';
 import b3TriggerCartNumber from '@/utils/b3TriggerCartNumber';
-import { callCart } from '@/utils/cartUtils';
+import { createOrUpdateExistingCart } from '@/utils/cartUtils';
 
 interface ShoppingProductsProps {
   shoppingListInfo: any;
@@ -33,6 +34,7 @@ interface ShoppingProductsProps {
   setValidateFailureProducts: (arr: ProductsProps[]) => void;
   setValidateSuccessProducts: (arr: ProductsProps[]) => void;
   textAlign?: string;
+  backendValidationEnabled: boolean;
 }
 
 interface FlexProps {
@@ -163,6 +165,7 @@ export default function ReAddToCart(props: ShoppingProductsProps) {
     setValidateFailureProducts,
     setValidateSuccessProducts,
     textAlign = 'left',
+    backendValidationEnabled,
   } = props;
 
   const { submitShoppingListPermission } = useAppSelector(rolePermissionSelector);
@@ -211,7 +214,30 @@ export default function ReAddToCart(props: ShoppingProductsProps) {
     setValidateFailureProducts(newProduct);
   };
 
-  const handRightClick = async () => {
+  const shouldRedirectToCheckout = () => {
+    handleCancelClicked();
+    if (
+      allowJuniorPlaceOrder &&
+      submitShoppingListPermission &&
+      shoppingListInfo?.status === ShoppingListStatus.Approved
+    ) {
+      window.location.href = CHECKOUT_URL;
+    } else {
+      snackbar.success(b3Lang('shoppingList.reAddToCart.productsAdded'), {
+        action: {
+          label: b3Lang('shoppingList.reAddToCart.viewCart'),
+          onClick: () => {
+            if (window.b2b.callbacks.dispatchEvent('on-click-cart-button')) {
+              window.location.href = CART_URL;
+            }
+          },
+        },
+      });
+      b3TriggerCartNumber();
+    }
+  };
+
+  const handlePrimaryAction = async () => {
     const isValidate = products.every((item: ProductsProps) => item.isValid);
 
     if (!isValidate) {
@@ -223,29 +249,10 @@ export default function ReAddToCart(props: ShoppingProductsProps) {
 
       const lineItems = addLineItems(products);
 
-      const res = await callCart(lineItems);
+      const res = await createOrUpdateExistingCart(lineItems);
 
       if (!res.errors) {
-        handleCancelClicked();
-        if (
-          allowJuniorPlaceOrder &&
-          submitShoppingListPermission &&
-          shoppingListInfo?.status === ShoppingListStatus.Approved
-        ) {
-          window.location.href = CHECKOUT_URL;
-        } else {
-          snackbar.success(b3Lang('shoppingList.reAddToCart.productsAdded'), {
-            action: {
-              label: b3Lang('shoppingList.reAddToCart.viewCart'),
-              onClick: () => {
-                if (window.b2b.callbacks.dispatchEvent('on-click-cart-button')) {
-                  window.location.href = CART_URL;
-                }
-              },
-            },
-          });
-          b3TriggerCartNumber();
-        }
+        shouldRedirectToCheckout();
       }
 
       if (res.errors) {
@@ -258,6 +265,36 @@ export default function ReAddToCart(props: ShoppingProductsProps) {
     }
   };
 
+  const handleReAddToCartBackend = async () => {
+    setLoading(true);
+
+    try {
+      const lineItems = addLineItems(products);
+      const res = await createOrUpdateExistingCart(lineItems);
+
+      if (!res.errors) {
+        shouldRedirectToCheckout();
+      }
+
+      b3TriggerCartNumber();
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        snackbar.error(e.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addOrProceedToCheckout = async () => {
+    if (backendValidationEnabled) {
+      await handleReAddToCartBackend();
+    } else {
+      handlePrimaryAction();
+    }
+  };
+
+  // this need the information of the SearchGraphlQuery endpoint change
   const handleClearNoStock = async () => {
     const newProduct = products.filter(
       (item: ProductsProps) => item.isStock === '0' || item.stock !== 0,
@@ -302,7 +339,7 @@ export default function ReAddToCart(props: ShoppingProductsProps) {
     <B3Dialog
       isOpen={isOpen}
       handleLeftClick={handleCancelClicked}
-      handRightClick={handRightClick}
+      handRightClick={addOrProceedToCheckout}
       title={
         allowJuniorPlaceOrder
           ? b3Lang('shoppingList.reAddToCart.proceedToCheckout')
@@ -321,15 +358,17 @@ export default function ReAddToCart(props: ShoppingProductsProps) {
             m: '0 0 1rem 0',
           }}
         >
-          <Alert variant="filled" severity="success">
-            {allowJuniorPlaceOrder
-              ? b3Lang('shoppingList.reAddToCart.productsCanCheckout', {
-                  successProducts,
-                })
-              : b3Lang('shoppingList.reAddToCart.productsAddedToCart', {
-                  successProducts,
-                })}
-          </Alert>
+          {successProducts > 0 && (
+            <Alert variant="filled" severity="success">
+              {allowJuniorPlaceOrder
+                ? b3Lang('shoppingList.reAddToCart.productsCanCheckout', {
+                    successProducts,
+                  })
+                : b3Lang('shoppingList.reAddToCart.productsAddedToCart', {
+                    successProducts,
+                  })}
+            </Alert>
+          )}
         </Box>
 
         <Box
@@ -337,15 +376,17 @@ export default function ReAddToCart(props: ShoppingProductsProps) {
             m: '1rem 0',
           }}
         >
-          <Alert variant="filled" severity="error">
-            {allowJuniorPlaceOrder
-              ? b3Lang('shoppingList.reAddToCart.productsCantCheckout', {
-                  quantity: products.length,
-                })
-              : b3Lang('shoppingList.reAddToCart.productsNotAddedToCart', {
-                  quantity: products.length,
-                })}
-          </Alert>
+          {products.length > 0 && (
+            <Alert variant="filled" severity="error">
+              {allowJuniorPlaceOrder
+                ? b3Lang('shoppingList.reAddToCart.productsCantCheckout', {
+                    quantity: products.length,
+                  })
+                : b3Lang('shoppingList.reAddToCart.productsNotAddedToCart', {
+                    quantity: products.length,
+                  })}
+            </Alert>
+          )}
         </Box>
         <B3Spin isSpinning={loading} size={16} isFlex={false}>
           <Box
@@ -397,7 +438,7 @@ export default function ReAddToCart(props: ShoppingProductsProps) {
                 </Flex>
               )}
               {products.map((product: ProductsProps, index: number) => {
-                const { isStock, maxQuantity, minQuantity, stock } = product;
+                const { isStock, maxQuantity, minQuantity, stock, node } = product;
 
                 const {
                   quantity = 1,
@@ -462,8 +503,8 @@ export default function ReAddToCart(props: ShoppingProductsProps) {
                     <FlexItem {...itemStyle.default} textAlignLocation={textAlign}>
                       <B3QuantityTextField
                         isStock={isStock}
-                        maxQuantity={maxQuantity}
-                        minQuantity={minQuantity}
+                        maxQuantity={maxQuantity || node.productsSearch?.orderQuantityMaximum}
+                        minQuantity={minQuantity || node.productsSearch?.orderQuantityMinimum}
                         stock={stock}
                         value={quantity}
                         onChange={(value, isValid) => {

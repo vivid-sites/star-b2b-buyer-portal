@@ -1,55 +1,210 @@
-import { LangFormatFunction } from '@/lib/lang';
 import { validateProduct } from '@/shared/service/b2b/graphql/product';
 
-import { snackbar } from './b3Tip';
+interface Option {
+  optionId: number | `attribute[${number}]`;
+  optionValue: string;
+}
 
-export const validateProducts = async (
-  products: CustomFieldItems[],
-  b3Lang: LangFormatFunction,
-) => {
-  const validationPromises = products.map(({ node: product }) => {
-    const { productId, quantity, productsSearch } = product;
-    const { variantId, newSelectOptionList } = productsSearch;
+interface NetworkValidationError {
+  type: 'network';
+  errorCode: 'NETWORK_ERROR';
+}
 
+interface ServerValidationError {
+  type: 'validation';
+  errorCode: 'NON_PURCHASABLE' | 'OOS' | 'INVALID_FIELDS' | 'OTHER';
+  message: string;
+}
+
+type ValidationError = NetworkValidationError | ServerValidationError;
+
+interface Product {
+  productId: number;
+  variantId: number;
+  quantity: number;
+  productOptions: Option[];
+}
+
+interface ValidatedProductSuccess<T> {
+  status: 'success';
+  product: T;
+}
+
+export interface ValidatedProductWarning<T> {
+  status: 'warning';
+  message: string;
+  product: T;
+}
+
+export interface ValidatedProductError<T> {
+  status: 'error';
+  error: ValidationError;
+  product: T;
+}
+
+type ValidatedProduct<T> =
+  | ValidatedProductSuccess<T>
+  | ValidatedProductWarning<T>
+  | ValidatedProductError<T>;
+
+interface ValidateProductsResult<T> {
+  success: ValidatedProductSuccess<T>[];
+  warning: ValidatedProductWarning<T>[];
+  error: ValidatedProductError<T>[];
+}
+
+type ValidateProductsInput =
+  | Product
+  | {
+      node: {
+        productId: number;
+        quantity: number;
+        productsSearch: { variantId: number; newSelectOptionList?: any[]; selectedOptions?: any[] };
+      };
+    }
+  | {
+      productId: number;
+      variantId: number;
+      quantity: number;
+      productsSearch?: { variantId: number; newSelectOptionList?: any[]; selectedOptions?: any[] };
+    }
+  // TODO: Remove this once all consumers are fully typed
+  | CustomFieldItems;
+
+const isProduct = (input: ValidateProductsInput): input is Product => {
+  if (typeof input !== 'object' || input === null) return false;
+
+  return (
+    'productId' in input && 'variantId' in input && 'quantity' in input && 'productOptions' in input
+  );
+};
+
+const transformProductOptions = (option: Option) => {
+  if (typeof option.optionId === 'string' && option.optionId.includes('attribute')) {
     // The passed in optionIds are formatted like "attribute[123]"
     // This extracts the number from the optionId
-    const productOptions = newSelectOptionList.map((option: CustomFieldItems) => ({
+    return {
       optionId: Number(option.optionId.split('[')[1].split(']')[0]),
       optionValue: option.optionValue,
-    }));
+    };
+  }
 
-    return validateProduct({
-      productId: Number(productId),
-      variantId: Number(variantId),
-      quantity: Number(quantity),
-      productOptions,
-    });
-  });
+  return {
+    optionId: Number(option.optionId),
+    optionValue: option.optionValue,
+  };
+};
 
-  const settledResults = await Promise.allSettled(validationPromises);
+const transformProductForValidation = (product: ValidateProductsInput): Product => {
+  if ('node' in product && product.node?.productsSearch) {
+    const { node } = product;
+    const { productsSearch } = node;
+    const options = productsSearch.newSelectOptionList || productsSearch.selectedOptions || [];
 
-  settledResults.forEach((result, index) => {
-    // Network or unexpected error
-    if (result.status === 'rejected') {
-      const { productName } = products[index].node;
+    return {
+      productId: Number(node.productId),
+      variantId: Number(productsSearch.variantId),
+      quantity: Number(node.quantity),
+      productOptions: options.map((opt: any) => ({
+        optionId: opt.optionId,
+        optionValue: String(opt.optionValue),
+      })),
+    };
+  }
 
-      snackbar.error(b3Lang('quotes.productValidationFailed', { productName }));
+  if (
+    'productId' in product &&
+    'variantId' in product &&
+    !('productOptions' in product) &&
+    'productsSearch' in product
+  ) {
+    const options =
+      product.productsSearch?.newSelectOptionList || product.productsSearch?.selectedOptions || [];
 
-      return;
+    return {
+      productId: Number(product.productId),
+      variantId: Number(product.productsSearch?.variantId || product.variantId),
+      quantity: Number(product.quantity),
+      productOptions: options.map((opt: any) => ({
+        optionId: opt.optionId,
+        optionValue: String(opt.optionValue),
+      })),
+    };
+  }
+
+  if (isProduct(product)) {
+    return {
+      productId: Number(product.productId),
+      variantId: Number(product.variantId),
+      quantity: Number(product.quantity),
+      productOptions: product.productOptions || [],
+    };
+  }
+
+  throw new Error('Unsupported product shape provided to validateProducts');
+};
+
+function mapToValidateProducts<T extends ValidateProductsInput>(product: T) {
+  const { productId, variantId, quantity, productOptions } = transformProductForValidation(product);
+
+  return {
+    productId,
+    variantId,
+    quantity,
+    productOptions: productOptions.map(transformProductOptions),
+  };
+}
+
+export const validateProducts = async <T extends ValidateProductsInput>(
+  products: T[],
+): Promise<ValidateProductsResult<T>> => {
+  const results = await Promise.allSettled(
+    products.map(mapToValidateProducts).map(validateProduct),
+  );
+
+  const validatedProducts = products.map<ValidatedProduct<T>>((product, index) => {
+    const res = results[index];
+
+    if (res.status === 'rejected') {
+      return {
+        status: 'error',
+        error: {
+          type: 'network',
+          errorCode: 'NETWORK_ERROR',
+        },
+        product,
+      };
     }
 
-    const { responseType, message } = result.value;
-
-    if (responseType === 'ERROR') {
-      snackbar.error(message);
+    switch (res.value.responseType) {
+      case 'ERROR':
+        return {
+          status: 'error',
+          error: {
+            type: 'validation',
+            message: res.value.message,
+            errorCode: res.value.errorCode,
+          },
+          product,
+        };
+      case 'WARNING':
+        return {
+          status: 'warning',
+          message: res.value.message,
+          product,
+        };
+      case 'SUCCESS':
+      default:
+        return {
+          status: 'success',
+          product,
+        };
     }
   });
 
-  const validProducts = products.filter((_, index) => {
-    const res = settledResults[index];
-
-    return res.status === 'fulfilled' && res.value.responseType !== 'ERROR';
-  });
-
-  return validProducts;
+  return {
+    success: validatedProducts.filter((product) => product.status === 'success'),
+    warning: validatedProducts.filter((product) => product.status === 'warning'),
+    error: validatedProducts.filter((product) => product.status === 'error'),
+  };
 };

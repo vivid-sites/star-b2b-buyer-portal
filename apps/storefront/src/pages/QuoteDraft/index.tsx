@@ -2,19 +2,18 @@ import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowBackIosNew } from '@mui/icons-material';
 import { Box, Checkbox, FormControlLabel, Stack, Typography } from '@mui/material';
-import { cloneDeep, concat, uniq } from 'lodash-es';
+import { cloneDeep, concat, has, isEqual, omit, uniq } from 'lodash-es';
+import { v4 as uuid } from 'uuid';
 
 import CustomButton from '@/components/button/CustomButton';
 import { getContrastColor } from '@/components/outSideComponents/utils/b3CustomStyles';
 import B3Spin from '@/components/spin/B3Spin';
 import { permissionLevels } from '@/constants';
-import {
-  dispatchEvent,
-  useFeatureFlags,
-  useMobile,
-  useSetCountry,
-  useValidatePermissionWithComparisonType,
-} from '@/hooks';
+import { dispatchEvent } from '@/hooks/useB2BCallback';
+import { useFeatureFlags } from '@/hooks/useFeatureFlags';
+import { useSetCountry } from '@/hooks/useGetCountry';
+import { useMobile } from '@/hooks/useMobile';
+import { useValidatePermissionWithComparisonType } from '@/hooks/useVerifyPermission';
 import { useB3Lang } from '@/lib/lang';
 import { CustomStyleContext } from '@/shared/customStyleButton';
 import { GlobalContext } from '@/shared/global';
@@ -40,11 +39,13 @@ import {
   QuoteInfo as QuoteInfoType,
   ShippingAddress,
 } from '@/types/quotes';
-import { B3LStorage, channelId, snackbar, storeHash } from '@/utils';
-import { verifyCreatePermission } from '@/utils/b3CheckPermissions';
+import { verifyCreatePermission } from '@/utils/b3CheckPermissions/check';
 import { b2bPermissionsMap } from '@/utils/b3CheckPermissions/config';
 import b2bLogger from '@/utils/b3Logger';
 import { addQuoteDraftProducts, getVariantInfoOOSAndPurchase } from '@/utils/b3Product/b3Product';
+import { B3LStorage } from '@/utils/b3Storage';
+import { snackbar } from '@/utils/b3Tip';
+import { channelId, storeHash } from '@/utils/basicConfig';
 import { deleteCartData } from '@/utils/cartUtils';
 import validateObject from '@/utils/quoteUtils';
 import { validateProducts } from '@/utils/validateProducts';
@@ -79,6 +80,11 @@ interface Country {
   countryName: string;
   id?: string;
 }
+
+// should be ShippingAddress or BillingAddress with masterCopy field added for internal use
+type AddressWithMasterCopy = (ShippingAddress | BillingAddress) & {
+  masterCopy?: Partial<AddressItemType>;
+};
 
 interface InfoRefProps extends HTMLInputElement {
   getContactInfoValue: () => any;
@@ -157,6 +163,9 @@ function QuoteDraft({ setOpenPage }: PageProps) {
     },
   } = useContext(CustomStyleContext);
 
+  const isMoveStockAndBackorderValidationToBackend =
+    featureFlags['B2B-3318.move_stock_and_backorder_validation_to_backend'] ?? false;
+
   const quotesActionsPermission = useMemo(() => {
     if (isB2BUser) {
       return verifyCreatePermission(
@@ -225,10 +234,13 @@ function QuoteDraft({ setOpenPage }: PageProps) {
 
           let addressB2BList = [];
           const fetchAddresses = async (id: number) => {
-            const {
-              addresses: { edges },
-            } = await getB2BCustomerAddresses(id);
-            return edges;
+            try {
+              const response = await getB2BCustomerAddresses(id, true);
+
+              return response.addresses.edges;
+            } catch {
+              return null;
+            }
           };
 
           if (!selectCompanyHierarchyId) {
@@ -237,58 +249,59 @@ function QuoteDraft({ setOpenPage }: PageProps) {
             addressB2BList = await fetchAddresses(Number(selectCompanyHierarchyId));
           }
 
-          const shippingDefaultAddress = addressB2BList.find(
-            (item: B2BAddress) => item?.node?.isDefaultShipping === 1,
-          );
-          const billingDefaultAddress = addressB2BList.find(
-            (item: B2BAddress) => item?.node?.isDefaultBilling === 1,
-          );
+          if (addressB2BList) {
+            const { node: shippingDefaultAddress } =
+              addressB2BList.find((item: B2BAddress) => item?.node?.isDefaultShipping === 1) || {};
+            const { node: billingDefaultAddress } =
+              addressB2BList.find((item: B2BAddress) => item?.node?.isDefaultBilling === 1) || {};
 
-          if (shippingDefaultAddress && validateObject(quoteInfo, 'shippingAddress')) {
-            const addressItem = {
-              label: shippingDefaultAddress?.node?.label || '',
-              firstName: shippingDefaultAddress?.node?.firstName || '',
-              lastName: shippingDefaultAddress?.node?.lastName || '',
-              companyName: shippingDefaultAddress?.node?.company || '',
-              country: shippingDefaultAddress?.node?.countryCode || '',
-              address: shippingDefaultAddress?.node?.addressLine1 || '',
-              apartment: shippingDefaultAddress?.node?.addressLine2 || '',
-              city: shippingDefaultAddress?.node?.city || '',
-              state: shippingDefaultAddress?.node?.state || '',
-              zipCode: shippingDefaultAddress?.node?.zipCode || '',
-              phoneNumber: shippingDefaultAddress?.node?.phoneNumber || '',
-              addressId: shippingDefaultAddress?.node?.id
-                ? Number(shippingDefaultAddress.node.id)
-                : 0,
-            };
+            if (
+              shippingDefaultAddress &&
+              (!quoteInfo?.shippingAddress || validateObject(quoteInfo, 'shippingAddress'))
+            ) {
+              const addressItem: AddressWithMasterCopy = {
+                label: shippingDefaultAddress.label || '',
+                firstName: shippingDefaultAddress.firstName || '',
+                lastName: shippingDefaultAddress.lastName || '',
+                companyName: shippingDefaultAddress.company || '',
+                country: shippingDefaultAddress.countryCode || '',
+                address: shippingDefaultAddress.addressLine1 || '',
+                apartment: shippingDefaultAddress.addressLine2 || '',
+                city: shippingDefaultAddress.city || '',
+                state: shippingDefaultAddress.state || '',
+                zipCode: shippingDefaultAddress.zipCode || '',
+                phoneNumber: shippingDefaultAddress.phoneNumber || '',
+                addressId: Number(shippingDefaultAddress.id) || 0,
+              };
+              addressItem.masterCopy = { ...addressItem };
 
-            quoteInfo.shippingAddress = addressItem as ShippingAddress;
+              quoteInfo.shippingAddress = addressItem;
+            }
+            if (
+              billingDefaultAddress &&
+              (!quoteInfo?.billingAddress || validateObject(quoteInfo, 'billingAddress'))
+            ) {
+              const addressItem: AddressWithMasterCopy = {
+                label: billingDefaultAddress.label || '',
+                firstName: billingDefaultAddress.firstName || '',
+                lastName: billingDefaultAddress.lastName || '',
+                companyName: billingDefaultAddress.company || '',
+                country: billingDefaultAddress.countryCode || '',
+                address: billingDefaultAddress.addressLine1 || '',
+                apartment: billingDefaultAddress.addressLine2 || '',
+                city: billingDefaultAddress.city || '',
+                state: billingDefaultAddress.state || '',
+                zipCode: billingDefaultAddress.zipCode || '',
+                phoneNumber: billingDefaultAddress.phoneNumber || '',
+                addressId: Number(billingDefaultAddress.id) || 0,
+              };
+              addressItem.masterCopy = { ...addressItem };
+
+              quoteInfo.billingAddress = addressItem;
+            }
+
+            setAddressList(addressB2BList);
           }
-          if (
-            billingDefaultAddress &&
-            (!quoteInfo?.billingAddress || validateObject(quoteInfo, 'billingAddress'))
-          ) {
-            const addressItem = {
-              label: billingDefaultAddress?.node?.label || '',
-              firstName: billingDefaultAddress?.node?.firstName || '',
-              lastName: billingDefaultAddress?.node?.lastName || '',
-              companyName: billingDefaultAddress?.node?.company || '',
-              country: billingDefaultAddress?.node?.countryCode || '',
-              address: billingDefaultAddress?.node?.addressLine1 || '',
-              apartment: billingDefaultAddress?.node?.addressLine2 || '',
-              city: billingDefaultAddress?.node?.city || '',
-              state: billingDefaultAddress?.node?.state || '',
-              zipCode: billingDefaultAddress?.node?.zipCode || '',
-              phoneNumber: billingDefaultAddress?.node?.phoneNumber || '',
-              addressId: billingDefaultAddress?.node?.id
-                ? Number(billingDefaultAddress.node.id)
-                : 0,
-            };
-
-            quoteInfo.billingAddress = addressItem as BillingAddress;
-          }
-
-          setAddressList(addressB2BList);
         } else if (role !== 100) {
           const {
             customerAddresses: { edges: addressBCList = [] },
@@ -440,12 +453,26 @@ function QuoteDraft({ setOpenPage }: PageProps) {
   };
 
   const addToQuote = async (products: CustomFieldItems[]) => {
-    if (featureFlags['B2B-3318.move_stock_and_backorder_validation_to_backend']) {
-      const validatedProducts = await validateProducts(products, b3Lang);
+    if (!isEnableProduct && isMoveStockAndBackorderValidationToBackend) {
+      const { success, warning, error } = await validateProducts(products);
 
-      addQuoteDraftProducts(validatedProducts);
+      error.forEach((err) => {
+        if (err.error.type === 'network') {
+          snackbar.error(
+            b3Lang('quotes.productValidationFailed', {
+              productName: err.product.node?.productName || '',
+            }),
+          );
+        } else {
+          snackbar.error(err.error.message);
+        }
+      });
 
-      return validatedProducts.length > 0;
+      const validProducts = [...success, ...warning].map((product) => product.product);
+
+      addQuoteDraftProducts(validProducts);
+
+      return validProducts.length > 0;
     }
 
     addQuoteDraftProducts(products);
@@ -475,18 +502,52 @@ function QuoteDraft({ setOpenPage }: PageProps) {
   const handleAfterSubmit = (
     inpQuoteId?: string | number,
     inpCurrentCreatedAt?: string | number,
+    uuid?: string,
   ) => {
     const currentQuoteId = inpQuoteId || quoteId;
     const createdAt = inpCurrentCreatedAt || currentCreatedAt;
 
     if (currentQuoteId) {
       handleReset();
-      navigate(`/quoteDetail/${currentQuoteId}?date=${createdAt}`, {
+      const uuidParam = uuid ? `&uuid=${uuid}` : '';
+      navigate(`/quoteDetail/${currentQuoteId}?date=${createdAt}${uuidParam}`, {
         state: {
           to: 'draft',
         },
       });
     }
+  };
+
+  /**
+   * Clone address and compare with masterCopy to decide if addressId can be reused.
+   *
+   * @param address - Address with optional masterCopy for comparison
+   * @returns Cloned address, potentially with reused addressId if no changes detected
+   *
+   * Cases:
+   * 1. No Master Copy: return cloned address
+   * 2. Master Copy exists and address unchanged: return cloned address with addressId
+   * 3. Master Copy exists but address changed: return cloned address with addressId set to 0
+   */
+  const cloneAddressWithId = ({
+    masterCopy,
+    ...address
+  }: AddressWithMasterCopy): ShippingAddress | BillingAddress => {
+    if (!masterCopy) {
+      return address;
+    }
+
+    if (has(masterCopy, 'company')) {
+      masterCopy.companyName = masterCopy.company || '';
+    }
+
+    const addressForComparison = omit(address, ['addressId']);
+    const masterCopyForComparison = omit(masterCopy, ['addressId', 'company']);
+
+    return {
+      ...address,
+      addressId: isEqual(addressForComparison, masterCopyForComparison) ? masterCopy.addressId : 0,
+    };
   };
 
   const handleSubmit = async () => {
@@ -527,7 +588,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
         return;
       }
 
-      if (!isEnableProduct) {
+      if (!isEnableProduct && !isMoveStockAndBackorderValidationToBackend) {
         const itHasInvalidProduct = draftQuoteList.some((item) => {
           return getVariantInfoOOSAndPurchase(item)?.name;
         });
@@ -541,8 +602,8 @@ function QuoteDraft({ setOpenPage }: PageProps) {
       const note = info?.note || '';
       const newNote = note.trim().replace(/[\r\n]/g, '\\n');
 
-      const perfectAddress = (address: ShippingAddress | BillingAddress) => {
-        const newAddress = cloneDeep(address);
+      const perfectAddress = (address: AddressWithMasterCopy) => {
+        const newAddress = cloneAddressWithId(address);
 
         const countryItem = countriesList?.find(
           (item: Country) => item.countryCode === newAddress.country,
@@ -616,6 +677,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
           imageUrl: node.primaryImage,
           productName: node.productName,
           options: optionsList,
+          itemId: uuid(),
         };
 
         return items;
@@ -661,11 +723,29 @@ function QuoteDraft({ setOpenPage }: PageProps) {
         throw new Error();
       }
 
+      const response = await createQuote(data);
+
+      if (isMoveStockAndBackorderValidationToBackend) {
+        if (response?.error?.extensions?.productValidationErrors?.length) {
+          response.error.extensions.productValidationErrors.forEach(
+            (err: { productId: number }) => {
+              snackbar.error(
+                b3Lang('quoteDraft.notification.productCannotBeAddedToQuote', {
+                  productId: err.productId,
+                }),
+              );
+            },
+          );
+
+          return;
+        }
+      }
+
       const {
         quoteCreate: {
-          quote: { id, createdAt },
+          quote: { id, createdAt, uuid: quoteUuid },
         },
-      } = await createQuote(data);
+      } = response;
 
       setQuoteId(id);
       setCurrentCreatedAt(createdAt);
@@ -678,7 +758,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
       }
 
       if (quoteSubmissionResponseInfo.value === '0') {
-        handleAfterSubmit(id, createdAt);
+        handleAfterSubmit(id, createdAt, quoteUuid);
       } else {
         setQuoteSubmissionResponseOpen(true);
       }
