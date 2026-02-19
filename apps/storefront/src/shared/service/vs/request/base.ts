@@ -19,16 +19,32 @@ const ENVIRONMENT_VS_APP_CLIENT_ID: EnvSpecificConfig<string> = {
 const DEFAULT_ENVIRONMENT =
   import.meta.env.VITE_IS_LOCAL_ENVIRONMENT === 'TRUE' ? Environment.Local : Environment.Production;
 
+function isEnvironment(value?: string): value is Environment {
+  if (!value) {
+    return false;
+  }
+
+  return Object.values<string>(Environment).includes(value);
+}
+
+const getEnvironment = (environment?: Environment): Environment => {
+  if (environment) {
+    return environment;
+  }
+
+  if (isEnvironment(window.B3?.setting?.environment)) {
+    return window.B3.setting.environment;
+  }
+
+  return DEFAULT_ENVIRONMENT;
+};
+  
 export function getVSAPIBaseURL(environment?: Environment) {
-  return ENVIRONMENT_VS_API_URL[
-    environment ?? window.B3?.setting?.vsEnvironment ?? DEFAULT_ENVIRONMENT
-  ];
+  return ENVIRONMENT_VS_API_URL[getEnvironment(environment)];
 }
 
 export function getVSAppClientId(environment?: Environment) {
-  return ENVIRONMENT_VS_APP_CLIENT_ID[
-    environment ?? window.B3?.setting?.vsEnvironment ?? DEFAULT_ENVIRONMENT
-  ];
+  return ENVIRONMENT_VS_APP_CLIENT_ID[getEnvironment(environment)];
 }
 
 export interface DataSourceRequest {
