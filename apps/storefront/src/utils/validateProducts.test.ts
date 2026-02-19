@@ -1,10 +1,94 @@
 import { graphql, HttpResponse, startMockServer } from 'tests/test-utils';
-import { expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { when } from 'vitest-when';
 
-import { validateProducts } from './validateProducts';
+import {
+  convertStockAndThresholdValidationErrorToWarning,
+  validateProductsLegacy,
+} from './validateProducts';
 
 const { server } = startMockServer();
+
+type ThresholdValidationInput = Parameters<
+  typeof convertStockAndThresholdValidationErrorToWarning
+>[0];
+
+const buildValidatedProductsFixture = () => {
+  const buildProduct = (id: number, name: string) => ({
+    productId: id,
+    variantId: id + 100,
+    quantity: 1,
+    name,
+    productOptions: [],
+  });
+
+  const products = {
+    success: buildProduct(1, 'Normal product'),
+    warning: buildProduct(2, 'Warning product'),
+    minimumThreshold: buildProduct(3, 'Minimum Threshold Product'),
+    maximumThreshold: buildProduct(4, 'Maximum Threshold Product'),
+    nonThreshold: buildProduct(5, 'Non Threshold Product'),
+    stock: buildProduct(6, 'Stock error product'),
+    network: buildProduct(7, 'Network error product'),
+  };
+
+  const minimumThresholdMessage = `You need to purchase a minimum of 5 of the ${products.minimumThreshold.name} per order.`;
+  const maximumThresholdMessage = `You can only purchase a maximum of 10 of the ${products.maximumThreshold.name} per order.`;
+
+  const validatedProducts: ThresholdValidationInput = {
+    success: [{ status: 'success', product: products.success }],
+    warning: [{ status: 'warning', message: 'Existing warning', product: products.warning }],
+    error: [
+      {
+        status: 'error',
+        error: {
+          type: 'validation',
+          message: minimumThresholdMessage,
+          errorCode: 'OTHER',
+          availableToSell: 4,
+        },
+        product: products.minimumThreshold,
+      },
+      {
+        status: 'error',
+        error: {
+          type: 'validation',
+          message: maximumThresholdMessage,
+          errorCode: 'OTHER',
+          availableToSell: 10,
+        },
+        product: products.maximumThreshold,
+      },
+      {
+        status: 'error',
+        error: {
+          type: 'validation',
+          message: 'Not purchasable for this account.',
+          errorCode: 'NON_PURCHASABLE',
+          availableToSell: 0,
+        },
+        product: products.nonThreshold,
+      },
+      {
+        status: 'error',
+        error: {
+          type: 'validation',
+          message: 'Out of stock.',
+          errorCode: 'OOS',
+          availableToSell: 0,
+        },
+        product: products.stock,
+      },
+      {
+        status: 'error',
+        error: { type: 'network', errorCode: 'NETWORK_ERROR' },
+        product: products.network,
+      },
+    ],
+  };
+
+  return { validatedProducts, products };
+};
 
 it('standardizes products and preserves the original payload', async () => {
   const validateProduct = vi.fn();
@@ -73,7 +157,7 @@ it('standardizes products and preserves the original payload', async () => {
     productOptions: [{ optionId: 'attribute[7]', optionValue: 'Green' }],
   };
 
-  const result = await validateProducts([
+  const result = await validateProductsLegacy([
     graphQlNodeProduct,
     productWithProductsSearch,
     plainProduct,
@@ -109,7 +193,14 @@ it('groups products by their validation status', async () => {
   when(validateProduct)
     .calledWith({ productId: 101, variantId: 199, quantity: 1, productOptions: [] })
     .thenReturn({
-      data: { validateProduct: { responseType: 'ERROR', message: 'foo bar', errorCode: 'OTHER' } },
+      data: {
+        validateProduct: {
+          responseType: 'ERROR',
+          message: 'foo bar',
+          errorCode: 'OTHER',
+          product: { availableToSell: 12 },
+        },
+      },
     });
   when(validateProduct)
     .calledWith({ productId: 102, variantId: 199, quantity: 1, productOptions: [] })
@@ -121,7 +212,7 @@ it('groups products by their validation status', async () => {
     ),
   );
 
-  const result = await validateProducts(products);
+  const result = await validateProductsLegacy(products);
 
   expect(result).toEqual({
     success: [{ status: 'success', product: products[0] }],
@@ -129,7 +220,7 @@ it('groups products by their validation status', async () => {
     error: [
       {
         status: 'error',
-        error: { type: 'validation', message: 'foo bar', errorCode: 'OTHER' },
+        error: { type: 'validation', message: 'foo bar', errorCode: 'OTHER', availableToSell: 12 },
         product: products[2],
       },
       {
@@ -144,6 +235,74 @@ it('groups products by their validation status', async () => {
 // This is here until TS can handle the type correctly
 it('throws an error if the product shape is not valid', async () => {
   await expect(() =>
-    validateProducts([{ productId: 1, variantId: 1, quantity: 1 }]),
+    validateProductsLegacy([{ productId: 1, variantId: 1, quantity: 1 }]),
   ).rejects.toThrow('Unsupported product shape provided to validateProducts');
+});
+
+describe('convertStockAndThresholdValidationErrorToWarning', () => {
+  it('converts threshold and stock errors to warnings', () => {
+    const { validatedProducts, products } = buildValidatedProductsFixture();
+    const minimumThresholdMessage = `You need to purchase a minimum of 5 of the ${products.minimumThreshold.name} per order.`;
+    const maximumThresholdMessage = `You can only purchase a maximum of 10 of the ${products.maximumThreshold.name} per order.`;
+
+    const result = convertStockAndThresholdValidationErrorToWarning(validatedProducts);
+
+    expect(result.warning).toEqual([
+      { status: 'warning', message: 'Existing warning', product: products.warning },
+      {
+        status: 'warning',
+        message: minimumThresholdMessage,
+        product: products.minimumThreshold,
+      },
+      {
+        status: 'warning',
+        message: maximumThresholdMessage,
+        product: products.maximumThreshold,
+      },
+      {
+        status: 'warning',
+        message: 'Out of stock.',
+        product: products.stock,
+      },
+    ]);
+  });
+
+  it('keeps non-threshold validation and network errors as errors', () => {
+    const { validatedProducts, products } = buildValidatedProductsFixture();
+
+    const result = convertStockAndThresholdValidationErrorToWarning(validatedProducts);
+
+    expect(result.success).toEqual([{ status: 'success', product: products.success }]);
+    expect(result.error).toEqual([
+      {
+        status: 'error',
+        error: {
+          type: 'validation',
+          message: 'Not purchasable for this account.',
+          errorCode: 'NON_PURCHASABLE',
+          availableToSell: 0,
+        },
+        product: products.nonThreshold,
+      },
+      {
+        status: 'error',
+        error: { type: 'network', errorCode: 'NETWORK_ERROR' },
+        product: products.network,
+      },
+    ]);
+  });
+
+  it('returns empty groups when no validations are provided', () => {
+    const result = convertStockAndThresholdValidationErrorToWarning({
+      success: [],
+      warning: [],
+      error: [],
+    });
+
+    expect(result).toEqual({
+      success: [],
+      warning: [],
+      error: [],
+    });
+  });
 });

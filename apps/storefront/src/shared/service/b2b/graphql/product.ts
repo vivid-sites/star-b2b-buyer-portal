@@ -106,6 +106,9 @@ const validateProductQuery = `
       responseType
       message
       errorCode
+      product {
+        availableToSell
+      }
     }
   }
 `;
@@ -345,6 +348,9 @@ interface ValidateProductError {
   responseType: 'ERROR';
   errorCode: 'NON_PURCHASABLE' | 'OOS' | 'INVALID_FIELDS' | 'OTHER';
   message: string;
+  product: {
+    availableToSell: number;
+  };
 }
 
 interface ValidateProductWarning {
@@ -357,13 +363,14 @@ export interface ValidateProductResponse {
     validateProduct: ValidateProductSuccess | ValidateProductWarning | ValidateProductError;
   };
 }
+
 interface ValidateProductsResponse {
   data: {
     validateProducts: {
       isValid: boolean;
       products: {
-        errorCode: string;
-        responseType: string;
+        errorCode: 'NON_PURCHASABLE' | 'OOS' | 'INVALID_FIELDS' | 'OTHER';
+        responseType: 'SUCCESS' | 'WARNING' | 'ERROR';
         message: string;
         product: {
           productId: number;

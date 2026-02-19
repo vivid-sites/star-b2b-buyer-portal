@@ -8,7 +8,7 @@ import { v1 as uuid } from 'uuid';
 
 import CustomButton from '@/components/button/CustomButton';
 import { CART_URL, PRODUCT_DEFAULT_IMAGE } from '@/constants';
-import { useFeatureFlags } from '@/hooks/useFeatureFlags';
+import { useIsBackorderEnabled } from '@/hooks/useIsBackorderEnabled';
 import { useMobile } from '@/hooks/useMobile';
 import { useB3Lang } from '@/lib/lang';
 import { GlobalContext } from '@/shared/global';
@@ -32,7 +32,10 @@ import { conversionProductsList } from '@/utils/b3Product/shared/config';
 import { snackbar } from '@/utils/b3Tip';
 import b3TriggerCartNumber from '@/utils/b3TriggerCartNumber';
 import { createOrUpdateExistingCart } from '@/utils/cartUtils';
-import { validateProducts } from '@/utils/validateProducts';
+import {
+  convertStockAndThresholdValidationErrorToWarning,
+  validateProductsLegacy,
+} from '@/utils/validateProducts';
 
 import CreateShoppingList from '../../OrderDetail/components/CreateShoppingList';
 import OrderShoppingList from '../../OrderDetail/components/OrderShoppingList';
@@ -93,13 +96,11 @@ function QuickOrderFooter(props: QuickOrderFooterProps) {
     state: { productQuoteEnabled = false, shoppingListEnabled = false },
   } = useContext(GlobalContext);
   const b3Lang = useB3Lang();
-  const featureFlags = useFeatureFlags();
 
   const companyInfoId = useAppSelector((state) => state.company.companyInfo.id);
   const { currency_code: currencyCode } = useAppSelector(activeCurrencyInfoSelector);
   const { purchasabilityPermission } = useAppSelector(rolePermissionSelector);
-  const backendValidationEnabled =
-    featureFlags['B2B-3318.move_stock_and_backorder_validation_to_backend'] ?? false;
+  const isBackorderEnabled = useIsBackorderEnabled();
 
   const isShowCartAction = isB2BUser ? purchasabilityPermission : true;
 
@@ -202,7 +203,7 @@ function QuickOrderFooter(props: QuickOrderFooterProps) {
     setIsRequestLoading(true);
     handleClose();
 
-    if (backendValidationEnabled) {
+    if (isBackorderEnabled) {
       handleBackendAddSelectedToCart();
     } else {
       handleFrontedAddSelectedToCart();
@@ -229,7 +230,9 @@ function QuickOrderFooter(props: QuickOrderFooterProps) {
   };
 
   const addToQuoteBackend = async (products: CustomFieldItems[]) => {
-    const { success, warning, error } = await validateProducts(products);
+    const validatedProducts = await validateProductsLegacy(products);
+    const { success, warning, error } =
+      convertStockAndThresholdValidationErrorToWarning(validatedProducts);
 
     const groupedErrors = groupBy(error, (err) =>
       ['OOS', 'NON_PURCHASABLE', 'NETWORK_ERROR'].includes(err.error.errorCode)
@@ -293,8 +296,7 @@ function QuickOrderFooter(props: QuickOrderFooterProps) {
 
     return true;
   };
-
-  const addToQuote = backendValidationEnabled ? addToQuoteBackend : addToQuoteFrontend;
+  const addToQuote = isBackorderEnabled ? addToQuoteBackend : addToQuoteFrontend;
 
   const handleAddSelectedToQuote = async () => {
     setIsRequestLoading(true);

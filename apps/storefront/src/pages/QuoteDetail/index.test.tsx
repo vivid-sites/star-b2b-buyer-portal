@@ -243,17 +243,22 @@ describe('when the user is a B2B customer', () => {
 
     vitest.mocked(useParams).mockReturnValue({ id: '272989' });
 
-    renderWithProviders(<QuoteDetail />, { preloadedState });
+    renderWithProviders(<QuoteDetail />, {
+      preloadedState: {
+        ...preloadedState,
+        global: { ...preloadedState.global, backorderEnabled: false },
+      },
+    });
 
     expect(await screen.findByText('2 products')).toBeInTheDocument();
 
-    const rowOfWoolSocks = screen.getByRole('row', { name: /Wool Socks/ });
+    const rowOfWoolSocks = await screen.findByRole('row', { name: /Wool Socks/ });
 
     expect(within(rowOfWoolSocks).getByRole('cell', { name: '$49.00' })).toBeInTheDocument();
     expect(within(rowOfWoolSocks).getByRole('cell', { name: '10' })).toBeInTheDocument();
     expect(within(rowOfWoolSocks).getByRole('cell', { name: '$490.00' })).toBeInTheDocument();
 
-    const rowOfDenimJacket = screen.getByRole('row', { name: /Denim Jacket/ });
+    const rowOfDenimJacket = await screen.findByRole('row', { name: /Denim Jacket/ });
 
     expect(within(rowOfDenimJacket).getByRole('cell', { name: '$133.33' })).toBeInTheDocument();
     expect(within(rowOfDenimJacket).getByRole('cell', { name: '3' })).toBeInTheDocument();
@@ -289,12 +294,17 @@ describe('when the user is a B2B customer', () => {
 
     vitest.mocked(useParams).mockReturnValue({ id: '272989' });
 
-    renderWithProviders(<QuoteDetail />, { preloadedState });
+    renderWithProviders(<QuoteDetail />, {
+      preloadedState: {
+        ...preloadedState,
+        global: { ...preloadedState.global, backorderEnabled: false },
+      },
+    });
 
     expect(await screen.findByRole('heading', { name: 'Quote summary' })).toBeInTheDocument();
 
     expect(await screen.findByText('Original subtotal')).toBeInTheDocument();
-    expect(screen.getByText('$1,000.00')).toBeInTheDocument();
+    expect(await screen.findByText('$1,000.00')).toBeInTheDocument();
 
     expect(screen.getByText('Discount amount')).toBeInTheDocument();
     expect(screen.getByText('-$25.00')).toBeInTheDocument();
@@ -345,6 +355,9 @@ describe('when the user is a B2B customer', () => {
             validateProduct: {
               responseType: 'ERROR',
               message: 'A product with the id of 123 does not have sufficient stock',
+              product: {
+                availableToSell: faker.number.int(),
+              },
             },
           },
         }),
@@ -365,9 +378,7 @@ describe('when the user is a B2B customer', () => {
         },
         global: {
           ...preloadedState.global,
-          featureFlags: {
-            'B2B-3318.move_stock_and_backorder_validation_to_backend': true,
-          },
+          backorderEnabled: true,
         },
       },
     });
@@ -424,9 +435,7 @@ describe('when the user is a B2B customer', () => {
         ...preloadedState,
         global: {
           ...preloadedState.global,
-          featureFlags: {
-            'B2B-3318.move_stock_and_backorder_validation_to_backend': true,
-          },
+          backorderEnabled: true,
         },
       },
     });
@@ -471,6 +480,9 @@ describe('when the user is a B2B customer', () => {
             validateProduct: {
               responseType: 'ERROR',
               message: 'A product with the id of 123 does not have sufficient stock',
+              product: {
+                availableToSell: faker.number.int(),
+              },
             },
           },
         }),
@@ -491,9 +503,7 @@ describe('when the user is a B2B customer', () => {
         },
         global: {
           ...preloadedState.global,
-          featureFlags: {
-            'B2B-3318.move_stock_and_backorder_validation_to_backend': true,
-          },
+          backorderEnabled: true,
         },
       },
     });
@@ -586,9 +596,7 @@ describe('when the user is a B2B customer', () => {
         },
         global: {
           ...preloadedState.global,
-          featureFlags: {
-            'B2B-3318.move_stock_and_backorder_validation_to_backend': true,
-          },
+          backorderEnabled: true,
         },
       },
     });
@@ -646,7 +654,7 @@ describe('when the user is a B2B customer', () => {
         HttpResponse.json(buildQuoteExtraFieldsWith('WHATEVER_VALUES')),
       ),
       graphql.query('ValidateProduct', async () => {
-        /* 
+        /*
           adding a delay to make sure we are mimicking the scenario where validateProduct api takes time
           and product error is visible immediately after loading
         */
@@ -657,6 +665,9 @@ describe('when the user is a B2B customer', () => {
             validateProduct: {
               responseType: 'ERROR',
               message: 'A product with the id of 123 does not have sufficient stock',
+              product: {
+                availableToSell: faker.number.int(),
+              },
             },
           },
         });
@@ -673,9 +684,7 @@ describe('when the user is a B2B customer', () => {
           blockPendingQuoteNonPurchasableOOS: {
             isEnableProduct: false,
           },
-          featureFlags: {
-            'B2B-3318.move_stock_and_backorder_validation_to_backend': true,
-          },
+          backorderEnabled: true,
         },
       },
     });
@@ -773,9 +782,9 @@ describe('when the user is a B2B customer', () => {
         HttpResponse.json(buildQuoteExtraFieldsWith('WHATEVER_VALUES')),
       ),
       graphql.query('ValidateProduct', async () => {
-        /* 
+        /*
           adding a delay to make sure we are mimicking the scenario where validateProduct api takes time
-          and still no TBD shows 
+          and still no TBD shows
         */
         await delay(200);
         return HttpResponse.json({
@@ -796,9 +805,7 @@ describe('when the user is a B2B customer', () => {
         ...preloadedState,
         global: {
           ...preloadedState.global,
-          featureFlags: {
-            'B2B-3318.move_stock_and_backorder_validation_to_backend': true,
-          },
+          backorderEnabled: true,
         },
       },
     });
@@ -872,9 +879,7 @@ describe('when the user is a B2B customer', () => {
       },
       global: {
         ...preloadedState.global,
-        featureFlags: {
-          'B2B-3318.move_stock_and_backorder_validation_to_backend': true,
-        },
+        backorderEnabled: true,
         quoteConfig: [
           {
             key: 'quote_auto_quoting',
@@ -941,9 +946,7 @@ describe('when the user is a B2B customer', () => {
       ...preloadedState,
       global: {
         ...preloadedState.global,
-        featureFlags: {
-          'B2B-3318.move_stock_and_backorder_validation_to_backend': true,
-        },
+        backorderEnabled: true,
         quoteConfig: [
           {
             key: 'quote_auto_quoting',
@@ -1073,9 +1076,7 @@ describe('when the user is a B2B customer', () => {
       preloadedState: {
         ...preloadedState,
         global: buildGlobalStateWith({
-          featureFlags: {
-            'B2B-3318.move_stock_and_backorder_validation_to_backend': true,
-          },
+          backorderEnabled: true,
         }),
       },
     });
@@ -1171,9 +1172,6 @@ describe('when the user is a B2B customer', () => {
             },
             global: {
               ...preloadedState.global,
-              featureFlags: {
-                'B2B-3318.move_stock_and_backorder_validation_to_backend': true,
-              },
             },
           },
           initialEntries: [`/272989?uuid=${uuid}&date=${dateString}`],
@@ -1217,9 +1215,6 @@ describe('when the user is a B2B customer', () => {
             },
             global: {
               ...preloadedState.global,
-              featureFlags: {
-                'B2B-3318.move_stock_and_backorder_validation_to_backend': true,
-              },
             },
           },
           initialEntries: [`/272989?date=${dateString}`],

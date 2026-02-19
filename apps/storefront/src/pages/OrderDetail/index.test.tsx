@@ -1670,7 +1670,7 @@ describe('when a personal customer visits an order', () => {
       }),
       storeInfo: buildStoreInfoStateWith({ timeFormat: { display: 'j F Y' } }),
       global: buildGlobalStateWith({
-        featureFlags: { 'B2B-3318.move_stock_and_backorder_validation_to_backend': true },
+        backorderEnabled: true,
       }),
     };
 
@@ -1790,6 +1790,7 @@ describe('when a personal customer visits an order', () => {
               errorCode: 'OOS',
               responseType: 'ERROR',
               message: 'A message from the backend',
+              product: { availableToSell: faker.number.int() },
             },
           },
         });
@@ -2133,6 +2134,7 @@ describe('when a personal customer visits an order', () => {
               responseType: 'ERROR',
               message: 'An error message from the backend',
               errorCode: 'OOS',
+              product: { availableToSell: faker.number.int() },
             },
           },
         });

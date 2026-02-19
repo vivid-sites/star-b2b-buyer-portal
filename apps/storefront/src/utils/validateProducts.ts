@@ -1,22 +1,12 @@
-import { validateProduct } from '@/shared/service/b2b/graphql/product';
+import {
+  validateProduct,
+  validateProducts as validateProductsService,
+} from '@/shared/service/b2b/graphql/product';
 
 interface Option {
   optionId: number | `attribute[${number}]`;
   optionValue: string;
 }
-
-interface NetworkValidationError {
-  type: 'network';
-  errorCode: 'NETWORK_ERROR';
-}
-
-interface ServerValidationError {
-  type: 'validation';
-  errorCode: 'NON_PURCHASABLE' | 'OOS' | 'INVALID_FIELDS' | 'OTHER';
-  message: string;
-}
-
-type ValidationError = NetworkValidationError | ServerValidationError;
 
 interface Product {
   productId: number;
@@ -30,27 +20,56 @@ interface ValidatedProductSuccess<T> {
   product: T;
 }
 
-export interface ValidatedProductWarning<T> {
+interface ValidatedProductWarning<T> {
   status: 'warning';
   message: string;
   product: T;
 }
 
-export interface ValidatedProductError<T> {
+interface ValidatedProductServerError<T> {
   status: 'error';
-  error: ValidationError;
+  error: {
+    type: 'validation';
+    errorCode: 'NON_PURCHASABLE' | 'OOS' | 'INVALID_FIELDS' | 'OTHER';
+    message: string;
+    availableToSell: number;
+  };
   product: T;
 }
 
-type ValidatedProduct<T> =
+interface ValidatedProductNetworkError<T> {
+  status: 'error';
+  error: {
+    type: 'network';
+    errorCode: 'NETWORK_ERROR';
+  };
+  product: T;
+}
+
+export type ValidatedProductError<T> =
+  | ValidatedProductServerError<T>
+  | ValidatedProductNetworkError<T>;
+
+type ValidatedProductLegacy<T> =
   | ValidatedProductSuccess<T>
   | ValidatedProductWarning<T>
   | ValidatedProductError<T>;
 
-interface ValidateProductsResult<T> {
+type ValidatedProduct<T> =
+  | ValidatedProductSuccess<T>
+  | ValidatedProductWarning<T>
+  | ValidatedProductServerError<T>;
+
+interface ValidateProductsLegacyResult<T> {
   success: ValidatedProductSuccess<T>[];
   warning: ValidatedProductWarning<T>[];
   error: ValidatedProductError<T>[];
+}
+
+interface ValidateProductsResult<T> {
+  success: ValidatedProductSuccess<T>[];
+  warning: ValidatedProductWarning<T>[];
+  error: ValidatedProductServerError<T>[];
 }
 
 type ValidateProductsInput =
@@ -155,14 +174,17 @@ function mapToValidateProducts<T extends ValidateProductsInput>(product: T) {
   };
 }
 
-export const validateProducts = async <T extends ValidateProductsInput>(
+/**
+ * @deprecated Use validateProducts instead
+ */
+export const validateProductsLegacy = async <T extends ValidateProductsInput>(
   products: T[],
-): Promise<ValidateProductsResult<T>> => {
+): Promise<ValidateProductsLegacyResult<T>> => {
   const results = await Promise.allSettled(
     products.map(mapToValidateProducts).map(validateProduct),
   );
 
-  const validatedProducts = products.map<ValidatedProduct<T>>((product, index) => {
+  const validatedProducts = products.map<ValidatedProductLegacy<T>>((product, index) => {
     const res = results[index];
 
     if (res.status === 'rejected') {
@@ -184,6 +206,7 @@ export const validateProducts = async <T extends ValidateProductsInput>(
             type: 'validation',
             message: res.value.message,
             errorCode: res.value.errorCode,
+            availableToSell: res.value.product.availableToSell,
           },
           product,
         };
@@ -208,3 +231,87 @@ export const validateProducts = async <T extends ValidateProductsInput>(
     error: validatedProducts.filter((product) => product.status === 'error'),
   };
 };
+
+export const validateProducts = async <T extends ValidateProductsInput>(
+  products: T[],
+): Promise<ValidateProductsResult<T>> => {
+  const { products: results } = await validateProductsService({
+    products: products.map(mapToValidateProducts),
+  });
+
+  const validatedProducts = products.map<ValidatedProduct<T>>((product, index) => {
+    const res = results[index];
+
+    switch (res.responseType) {
+      case 'ERROR':
+        return {
+          status: 'error',
+          error: {
+            type: 'validation',
+            message: res.message,
+            errorCode: res.errorCode,
+            availableToSell: res.product.availableToSell,
+          },
+          product,
+        };
+      case 'WARNING':
+        return {
+          status: 'warning',
+          message: res.message,
+          product,
+        };
+      case 'SUCCESS':
+      default:
+        return {
+          status: 'success',
+          product,
+        };
+    }
+  });
+
+  return {
+    success: validatedProducts.filter((product) => product.status === 'success'),
+    warning: validatedProducts.filter((product) => product.status === 'warning'),
+    error: validatedProducts.filter((product) => product.status === 'error'),
+  };
+};
+
+/* 
+  Required in case of adding to the quote, because min, max threshold error
+  products should still be added to the quote
+*/
+export function convertStockAndThresholdValidationErrorToWarning<T extends ValidateProductsInput>(
+  validatedProducts: ValidateProductsResult<T>,
+): ValidateProductsResult<T>;
+export function convertStockAndThresholdValidationErrorToWarning<T extends ValidateProductsInput>(
+  validatedProducts: ValidateProductsLegacyResult<T>,
+): ValidateProductsLegacyResult<T>;
+export function convertStockAndThresholdValidationErrorToWarning<T extends ValidateProductsInput>(
+  validatedProducts: ValidateProductsLegacyResult<T> | ValidateProductsResult<T>,
+): ValidateProductsLegacyResult<T> | ValidateProductsResult<T> {
+  const isThresholdError = (error: ValidatedProductError<T>['error']) =>
+    error.errorCode === 'OTHER' && /purchase a (minimum|maximum) of/im.test(error.message);
+
+  // out of stock or low on stock error
+  const isStockError = (error: ValidatedProductError<T>['error']) => error.errorCode === 'OOS';
+
+  const stockAndThresholdErrors = validatedProducts.error.filter(
+    ({ error }) => isThresholdError(error) || isStockError(error),
+  ) as Array<ValidatedProductServerError<T>>;
+
+  const nonStockAndThresholdErrors = validatedProducts.error.filter(
+    ({ error }) => !(isThresholdError(error) || isStockError(error)),
+  );
+
+  const stockAndThresholdWarnings = stockAndThresholdErrors.map(({ product, error }) => ({
+    status: 'warning',
+    message: error.message,
+    product,
+  })) as Array<ValidatedProductWarning<T>>;
+
+  return {
+    success: validatedProducts.success,
+    error: nonStockAndThresholdErrors,
+    warning: [...validatedProducts.warning, ...stockAndThresholdWarnings],
+  };
+}

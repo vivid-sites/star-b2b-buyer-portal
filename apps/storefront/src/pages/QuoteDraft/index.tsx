@@ -2,16 +2,16 @@ import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowBackIosNew } from '@mui/icons-material';
 import { Box, Checkbox, FormControlLabel, Stack, Typography } from '@mui/material';
-import { cloneDeep, concat, has, isEqual, omit, uniq } from 'lodash-es';
-import { v4 as uuid } from 'uuid';
+import { cloneDeep, concat, isEqual, omit, uniq } from 'lodash-es';
+import { v4 as generateUuid } from 'uuid';
 
 import CustomButton from '@/components/button/CustomButton';
 import { getContrastColor } from '@/components/outSideComponents/utils/b3CustomStyles';
 import B3Spin from '@/components/spin/B3Spin';
 import { permissionLevels } from '@/constants';
 import { dispatchEvent } from '@/hooks/useB2BCallback';
-import { useFeatureFlags } from '@/hooks/useFeatureFlags';
 import { useSetCountry } from '@/hooks/useGetCountry';
+import { useIsBackorderEnabled } from '@/hooks/useIsBackorderEnabled';
 import { useMobile } from '@/hooks/useMobile';
 import { useValidatePermissionWithComparisonType } from '@/hooks/useVerifyPermission';
 import { useB3Lang } from '@/lib/lang';
@@ -48,7 +48,10 @@ import { snackbar } from '@/utils/b3Tip';
 import { channelId, storeHash } from '@/utils/basicConfig';
 import { deleteCartData } from '@/utils/cartUtils';
 import validateObject from '@/utils/quoteUtils';
-import { validateProducts } from '@/utils/validateProducts';
+import {
+  convertStockAndThresholdValidationErrorToWarning,
+  validateProductsLegacy,
+} from '@/utils/validateProducts';
 
 import { getProductOptionsFields } from '../../utils/b3Product/shared/config';
 import { convertBCToB2BAddress } from '../AddressList/shared/config';
@@ -95,6 +98,12 @@ interface QuoteSummaryRef extends HTMLInputElement {
   refreshSummary: () => void;
 }
 
+type QuoteSubmissionDataRefType = {
+  id: string;
+  createdAt: string;
+  uuid?: string;
+};
+
 const shippingAddress = {
   address: '',
   addressId: 0,
@@ -130,7 +139,6 @@ function QuoteDraft({ setOpenPage }: PageProps) {
     state: { countriesList, openAPPParams },
   } = useContext(GlobalContext);
   const dispatch = useAppDispatch();
-  const featureFlags = useFeatureFlags();
 
   const isB2BUser = useAppSelector(isB2BUserSelector);
   const companyB2BId = useAppSelector(({ company }) => company.companyInfo.id);
@@ -153,7 +161,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
   const { selectCompanyHierarchyId } = useAppSelector(
     ({ company }) => company.companyHierarchyInfo,
   );
-  const isEnableProduct = useAppSelector(
+  const isAddNonPurchasableOutOfStockToQuoteEnabled = useAppSelector(
     ({ global }) => global.blockPendingQuoteNonPurchasableOOS.isEnableProduct,
   );
 
@@ -163,8 +171,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
     },
   } = useContext(CustomStyleContext);
 
-  const isMoveStockAndBackorderValidationToBackend =
-    featureFlags['B2B-3318.move_stock_and_backorder_validation_to_backend'] ?? false;
+  const isBackorderEnabled = useIsBackorderEnabled();
 
   const quotesActionsPermission = useMemo(() => {
     if (isB2BUser) {
@@ -192,10 +199,9 @@ function QuoteDraft({ setOpenPage }: PageProps) {
   const [shippingSameAsBilling, setShippingSameAsBilling] = useState<boolean>(false);
   const [billingChange, setBillingChange] = useState<boolean>(false);
   const [quoteSubmissionResponseOpen, setQuoteSubmissionResponseOpen] = useState<boolean>(false);
-  const [quoteId, setQuoteId] = useState<string | number>('');
-  const [currentCreatedAt, setCurrentCreatedAt] = useState<string | number>('');
   const [extraFields, setExtraFields] = useState<QuoteFormattedItemsProps[]>([]);
 
+  const quoteSubmissionDataRef = useRef<QuoteSubmissionDataRefType>();
   const quoteSummaryRef = useRef<QuoteSummaryRef | null>(null);
 
   const [isAddressCompanyHierarchy] = useValidatePermissionWithComparisonType({
@@ -453,31 +459,31 @@ function QuoteDraft({ setOpenPage }: PageProps) {
   };
 
   const addToQuote = async (products: CustomFieldItems[]) => {
-    if (!isEnableProduct && isMoveStockAndBackorderValidationToBackend) {
-      const { success, warning, error } = await validateProducts(products);
-
-      error.forEach((err) => {
-        if (err.error.type === 'network') {
-          snackbar.error(
-            b3Lang('quotes.productValidationFailed', {
-              productName: err.product.node?.productName || '',
-            }),
-          );
-        } else {
-          snackbar.error(err.error.message);
-        }
-      });
-
-      const validProducts = [...success, ...warning].map((product) => product.product);
-
-      addQuoteDraftProducts(validProducts);
-
-      return validProducts.length > 0;
+    if (!isBackorderEnabled) {
+      addQuoteDraftProducts(products);
+      return true;
     }
+    const validatedProducts = await validateProductsLegacy(products);
+    const { success, warning, error } =
+      convertStockAndThresholdValidationErrorToWarning(validatedProducts);
 
-    addQuoteDraftProducts(products);
+    error.forEach((err) => {
+      if (err.error.type === 'network') {
+        snackbar.error(
+          b3Lang('quotes.productValidationFailed', {
+            productName: err.product.node?.productName || '',
+          }),
+        );
+      } else {
+        snackbar.error(err.error.message);
+      }
+    });
 
-    return true;
+    const validProducts = [...success, ...warning].map((product) => product.product);
+
+    addQuoteDraftProducts(validProducts);
+
+    return validProducts.length > 0;
   };
 
   const getFileList = (files: CustomFieldItems[]) => {
@@ -499,18 +505,12 @@ function QuoteDraft({ setOpenPage }: PageProps) {
     B3LStorage.delete('cartToQuoteId');
   };
 
-  const handleAfterSubmit = (
-    inpQuoteId?: string | number,
-    inpCurrentCreatedAt?: string | number,
-    uuid?: string,
-  ) => {
-    const currentQuoteId = inpQuoteId || quoteId;
-    const createdAt = inpCurrentCreatedAt || currentCreatedAt;
-
-    if (currentQuoteId) {
+  const handleAfterSubmit = (quoteSubmissionData?: QuoteSubmissionDataRefType) => {
+    if (quoteSubmissionData && quoteSubmissionData.id) {
+      const { id, createdAt, uuid } = quoteSubmissionData;
       handleReset();
       const uuidParam = uuid ? `&uuid=${uuid}` : '';
-      navigate(`/quoteDetail/${currentQuoteId}?date=${createdAt}${uuidParam}`, {
+      navigate(`/quoteDetail/${id}?date=${createdAt}${uuidParam}`, {
         state: {
           to: 'draft',
         },
@@ -537,12 +537,8 @@ function QuoteDraft({ setOpenPage }: PageProps) {
       return address;
     }
 
-    if (has(masterCopy, 'company')) {
-      masterCopy.companyName = masterCopy.company || '';
-    }
-
     const addressForComparison = omit(address, ['addressId']);
-    const masterCopyForComparison = omit(masterCopy, ['addressId', 'company']);
+    const masterCopyForComparison = omit(masterCopy, ['addressId']);
 
     return {
       ...address,
@@ -588,7 +584,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
         return;
       }
 
-      if (!isEnableProduct && !isMoveStockAndBackorderValidationToBackend) {
+      if (!isAddNonPurchasableOutOfStockToQuoteEnabled && !isBackorderEnabled) {
         const itHasInvalidProduct = draftQuoteList.some((item) => {
           return getVariantInfoOOSAndPurchase(item)?.name;
         });
@@ -600,7 +596,9 @@ function QuoteDraft({ setOpenPage }: PageProps) {
       }
 
       const note = info?.note || '';
-      const newNote = note.trim().replace(/[\r\n]/g, '\\n');
+      const newNote = note.trim();
+      // just trim the note,
+      // no matter it's empty or not, to avoid unnecessary space in the quote info
 
       const perfectAddress = (address: AddressWithMasterCopy) => {
         const newAddress = cloneAddressWithId(address);
@@ -677,7 +675,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
           imageUrl: node.primaryImage,
           productName: node.productName,
           options: optionsList,
-          itemId: uuid(),
+          itemId: generateUuid(),
         };
 
         return items;
@@ -725,7 +723,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
 
       const response = await createQuote(data);
 
-      if (isMoveStockAndBackorderValidationToBackend) {
+      if (isBackorderEnabled) {
         if (response?.error?.extensions?.productValidationErrors?.length) {
           response.error.extensions.productValidationErrors.forEach(
             (err: { productId: number }) => {
@@ -743,12 +741,11 @@ function QuoteDraft({ setOpenPage }: PageProps) {
 
       const {
         quoteCreate: {
-          quote: { id, createdAt, uuid: quoteUuid },
+          quote: { id, createdAt, uuid },
         },
       } = response;
 
-      setQuoteId(id);
-      setCurrentCreatedAt(createdAt);
+      quoteSubmissionDataRef.current = { id, createdAt, uuid };
 
       if (id) {
         const cartId = B3LStorage.get('cartToQuoteId');
@@ -758,7 +755,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
       }
 
       if (quoteSubmissionResponseInfo.value === '0') {
-        handleAfterSubmit(id, createdAt, quoteUuid);
+        handleAfterSubmit(quoteSubmissionDataRef.current);
       } else {
         setQuoteSubmissionResponseOpen(true);
       }
@@ -772,7 +769,7 @@ function QuoteDraft({ setOpenPage }: PageProps) {
   const handleCloseQuoteSubmissionResponse = () => {
     setQuoteSubmissionResponseOpen(false);
 
-    handleAfterSubmit();
+    handleAfterSubmit(quoteSubmissionDataRef.current);
   };
 
   const backText = () => {
