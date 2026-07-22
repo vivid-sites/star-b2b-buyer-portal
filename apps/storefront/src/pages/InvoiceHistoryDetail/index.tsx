@@ -6,7 +6,7 @@ import { Box, Card, CardContent, Grid, Stack, Typography } from '@mui/material';
 
 import { b3HexToRgb, getContrastColor } from '@/components/outSideComponents/utils/b3CustomStyles';
 import B3Spin from '@/components/spin/B3Spin';
-import { useMobile } from '@/hooks';
+import { useMobile } from '@/hooks/useMobile';
 import { CustomStyleContext } from '@/shared/customStyleButton';
 
 import { InvoiceHistoryDetailsContext, InvoiceHistoryDetailsProvider } from './context/InvoiceHistoryDetailsContext';

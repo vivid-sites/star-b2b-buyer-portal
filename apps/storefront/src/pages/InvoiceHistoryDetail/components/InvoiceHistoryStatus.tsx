@@ -1,4 +1,4 @@
-import { B3Tag } from '@/components';
+import { B3Tag } from '@/components/B3Tag';
 
 interface InvoiceHistoryStatusProps {
   status: string;

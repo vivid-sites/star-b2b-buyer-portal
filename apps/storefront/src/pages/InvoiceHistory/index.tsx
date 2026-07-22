@@ -4,13 +4,14 @@ import { useB3Lang } from '@/lib/lang';
 import { Box, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 
-import { B2BAutoCompleteCheckbox } from '@/components';
+import { B2BAutoCompleteCheckbox } from '@/components/ui/B2BAutoCompleteCheckbox';
 import B3Filter from '@/components/filter/B3Filter';
 import B3Spin from '@/components/spin/B3Spin';
-import { useMobile } from '@/hooks';
+import { useMobile } from '@/hooks/useMobile';
 import { useAppSelector } from '@/store';
 import { CustomerRole, MoneyFormat } from '@/types';
-import { ordersCurrencyFormat, displayFormat } from '@/utils';
+import { ordersCurrencyFormat } from '@/utils/b3CurrencyFormat';
+import { displayFormat } from '@/utils/b3DateFormat';
 import { DataSourceRequest } from '@/shared/service/vs/request/base';
 
 import { B3Table, TableColumnItem } from './table/B3Table';

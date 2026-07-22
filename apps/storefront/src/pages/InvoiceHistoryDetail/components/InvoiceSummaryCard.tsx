@@ -2,7 +2,7 @@ import { Box, Card, CardContent, Divider, styled, Typography } from "@mui/materi
 
 import { InvoiceSummary, MoneyFormat } from "@/types";
 import { displayFormat } from '@/utils/b3DateFormat';
-import { currencyFormat, ordersCurrencyFormat } from '@/utils';
+import { currencyFormat, ordersCurrencyFormat } from '@/utils/b3CurrencyFormat';
 import { Fragment } from "react/jsx-runtime";
 import { useB3Lang } from "@/lib/lang";
 import CustomButton from "@/components/button/CustomButton";

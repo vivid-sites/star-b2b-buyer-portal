@@ -2,8 +2,8 @@ import { useB3Lang } from '@/lib/lang';
 import styled from '@emotion/styled';
 import { Box, Typography } from '@mui/material';
 
-import { useMobile } from '@/hooks';
-import { currencyFormat, ordersCurrencyFormat } from '@/utils';
+import { useMobile } from '@/hooks/useMobile';
+import { currencyFormat, ordersCurrencyFormat } from '@/utils/b3CurrencyFormat';
 
 import { InvoiceHistoryProductItemModel, MoneyFormat } from '../../../types';
 

@@ -15,7 +15,7 @@ import {
 import TableSortLabel from '@mui/material/TableSortLabel';
 
 import { b3HexToRgb, getContrastColor } from '@/components/outSideComponents/utils/b3CustomStyles';
-import { useMobile } from '@/hooks';
+import { useMobile } from '@/hooks/useMobile';
 import { CustomStyleContext } from '@/shared/customStyleButton';
 
 import B3NoData from './B3NoData';
